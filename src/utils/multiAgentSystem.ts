@@ -1,4 +1,3 @@
-
 import { geminiAPI } from './geminiApi';
 
 export interface ResumeData {
@@ -65,6 +64,7 @@ export interface AgentFeedback {
   analysis: string;
   recommendations: string[];
   concerns: string[];
+  strengths: string[];
   confidence: number;
 }
 
