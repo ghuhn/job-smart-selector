@@ -1,73 +1,115 @@
-# Welcome to your Lovable project
 
-## Project info
+# ResumeAI - Multi-Agent Resume Screener
 
-**URL**: https://lovable.dev/projects/c89a2799-0981-4ee3-9984-bf4ec713b31d
+An enterprise-grade AI-powered resume screening and candidate recommendation system built with React, TypeScript, and Google's Gemini AI.
 
-## How can I edit this code?
+## 🚀 Features
 
-There are several ways of editing your application.
+### Core Functionality
+- **Smart Resume Upload**: Drag-and-drop interface supporting PDF and DOCX files
+- **Job Description Builder**: Comprehensive form for defining role requirements
+- **Multi-Agent AI Analysis**: Four specialized AI agents working in orchestration
+- **Top 3 Recommendations**: Ranked candidates with detailed explanations
+- **Download Reports**: Export summaries and detailed analysis reports
+- **Responsive Design**: Professional, enterprise-ready interface
 
-**Use Lovable**
+### AI Multi-Agent System
+1. **Recruiter Agent**: Extracts education, skills, tools, and experience from resumes
+2. **Analyst Agent**: Matches extracted features to job description using scoring algorithm
+3. **HR Agent**: Evaluates tone, soft skills, and identifies potential red flags
+4. **Recommender Agent**: Ranks resumes and suggests top 3 candidates for the role
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c89a2799-0981-4ee3-9984-bf4ec713b31d) and start prompting.
+## 🛠 Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Components**: shadcn/ui, Tailwind CSS
+- **Routing**: React Router v6
+- **State Management**: React Query (TanStack Query)
+- **AI Integration**: Google Gemini Pro API
+- **Icons**: Lucide React
+- **Animations**: CSS transitions and Tailwind animations
 
-**Use your preferred IDE**
+## 📱 Application Flow
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Landing Page**: Beautiful hero section with feature overview
+2. **Upload Page**: Drag-and-drop resume upload with file validation
+3. **Job Description**: Comprehensive form for role requirements
+4. **Processing Page**: Real-time AI agent status with progress tracking
+5. **Results Page**: Detailed candidate analysis with rankings and insights
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🎨 Design System
 
-Follow these steps:
+- **Color Palette**: Professional blues, purples, and grays
+- **Typography**: Clean, readable fonts with proper hierarchy
+- **Layout**: Card-based design with proper spacing
+- **Animations**: Smooth transitions and micro-interactions
+- **Responsive**: Mobile-first design approach
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔧 Setup Instructions
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd resume-ai-screener
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2. **Install dependencies**
+```bash
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. **Start development server**
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. **Build for production**
+```bash
+npm run build
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🔑 API Configuration
 
-**Use GitHub Codespaces**
+The application uses Google's Gemini Pro API for AI processing. The API key is currently embedded for demo purposes, but for production use:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Create a `.env` file (not included in this template)
+2. Add your Gemini API key: `VITE_GEMINI_API_KEY=your_api_key_here`
+3. Update `src/utils/geminiApi.ts` to use the environment variable
 
-## What technologies are used for this project?
+## 📊 Scoring Algorithm
 
-This project is built with:
+The AI agents evaluate candidates across multiple dimensions:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Technical Skills** (0-100): Match with required technologies
+- **Experience Level** (0-100): Relevant work experience assessment
+- **Education** (0-100): Educational background alignment
+- **Communication** (0-100): Writing style and presentation quality
+- **Cultural Fit** (0-100): Alignment with company values and role
 
-## How can I deploy this project?
+## 🚀 Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/c89a2799-0981-4ee3-9984-bf4ec713b31d) and click on Share -> Publish.
+The application is ready for deployment on any modern hosting platform:
 
-## Can I connect a custom domain to my Lovable project?
+- **Vercel**: `npm run build` then upload dist folder
+- **Netlify**: Connect repository for automatic deployments
+- **GitHub Pages**: Use GitHub Actions for automated builds
 
-Yes, you can!
+## 🎯 Future Enhancements
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **Feedback Agent**: Learn from rejected candidates to improve logic
+- **Resume Parsing**: Direct PDF/DOCX text extraction
+- **Vector Search**: Semantic similarity matching
+- **Interview Scheduling**: Integration with calendar systems
+- **Analytics Dashboard**: Hiring metrics and insights
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 📄 License
+
+This project is built for educational and demonstration purposes. Please ensure compliance with data privacy regulations when processing real candidate information.
+
+## 🤝 Contributing
+
+This is a capstone project demonstrating enterprise-level development practices. The codebase follows modern React patterns and is designed for scalability and maintainability.
+
+---
+
+**Built with ❤️ using React, TypeScript, and AI**
