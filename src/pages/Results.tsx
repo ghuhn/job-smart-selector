@@ -101,6 +101,7 @@ const Results = () => {
             analysis: "Outstanding candidate with excellent leadership qualities and strong career progression.",
             recommendations: ["Fast-track for interview", "Consider for senior role"],
             concerns: [],
+            strengths: ["Strong leadership qualities", "Excellent career progression", "Team collaboration skills"],
             confidence: 95
           },
           {
@@ -108,6 +109,7 @@ const Results = () => {
             analysis: "Exceptional technical depth with relevant project experience and modern technology stack.",
             recommendations: ["Technical deep-dive interview", "Architecture discussion"],
             concerns: [],
+            strengths: ["Modern technology stack", "Scalable system architecture", "Technical leadership"],
             confidence: 96
           }
         ],
