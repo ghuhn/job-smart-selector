@@ -90,11 +90,11 @@ export class LangGraphMultiAgentSystem {
   private agentResults: Map<string, any> = new Map();
 
   // Enhanced Recruiter Agent - Comprehensive Information Extraction
-  async recruiterAgent(resumeText: string): Promise<ResumeData> {
+  async recruiterAgent(resumeContent: string): Promise<ResumeData> {
     const prompt = `
     As an Expert Recruiter Agent, perform comprehensive extraction from this resume. Extract ALL available information:
     
-    Resume Text: ${resumeText}
+    Resume Content: ${resumeContent}
     
     Extract and return in JSON format:
     {
@@ -138,10 +138,12 @@ export class LangGraphMultiAgentSystem {
     `;
 
     try {
+      console.log('Recruiter Agent processing resume content:', resumeContent.substring(0, 200) + '...');
       const response = await geminiAPI.generateContent(prompt);
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const extractedData = JSON.parse(jsonMatch[0]);
+        console.log('Recruiter Agent extracted data:', extractedData);
         this.agentResults.set('recruiter', {
           status: 'completed',
           data: extractedData,
@@ -152,32 +154,10 @@ export class LangGraphMultiAgentSystem {
       throw new Error('Could not parse JSON response');
     } catch (error) {
       console.error('Recruiter Agent error:', error);
-      // Enhanced fallback data
-      const fallbackData: ResumeData = {
-        name: "John Doe",
-        email: "john.doe@email.com",
-        phone: "+1 (555) 123-4567",
-        location: "City, State",
-        skills: ["JavaScript", "React", "Node.js"],
-        technicalSkills: ["JavaScript", "React", "Node.js"],
-        softSkills: ["Communication", "Teamwork"],
-        experience: "3 years",
-        experienceYears: 3,
-        education: "BS Computer Science",
-        educationLevel: "Bachelors",
-        certifications: [],
-        languages: ["English"],
-        previousRoles: [{
-          title: "Developer",
-          company: "Company A",
-          duration: "2021-2024",
-          responsibilities: ["Developed applications"]
-        }],
-        projects: [],
-        achievements: [],
-        summary: "Experienced developer",
-        keywords: ["JavaScript", "React", "Node.js"]
-      };
+      console.log('Falling back to manual parsing for resume content:', resumeContent.substring(0, 100));
+      
+      // Enhanced fallback - try to extract basic info from resume content
+      const fallbackData: ResumeData = this.parseResumeManually(resumeContent);
       this.agentResults.set('recruiter', {
         status: 'fallback',
         data: fallbackData,
@@ -185,6 +165,83 @@ export class LangGraphMultiAgentSystem {
       });
       return fallbackData;
     }
+  }
+
+  // Manual resume parsing as fallback
+  private parseResumeManually(resumeContent: string): ResumeData {
+    console.log('Manual parsing of resume content');
+    
+    // Extract name (usually first line or near the top)
+    const lines = resumeContent.split('\n').filter(line => line.trim());
+    let name = "Unknown Candidate";
+    for (const line of lines.slice(0, 5)) {
+      if (line.length > 5 && line.length < 50 && !line.includes('@') && !line.includes('http')) {
+        name = line.trim();
+        break;
+      }
+    }
+
+    // Extract email
+    const emailMatch = resumeContent.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = emailMatch ? emailMatch[0] : `${name.toLowerCase().replace(/\s+/g, '.')}@email.com`;
+
+    // Extract phone
+    const phoneMatch = resumeContent.match(/[\+]?[1-9]?[\-\s\.]?\(?[0-9]{3}\)?[\-\s\.]?[0-9]{3}[\-\s\.]?[0-9]{4}/);
+    const phone = phoneMatch ? phoneMatch[0] : "+1 (555) 123-4567";
+
+    // Extract location
+    const locationMatch = resumeContent.match(/([A-Za-z\s]+,\s*[A-Z]{2})|([A-Za-z\s]+,\s*[A-Za-z\s]+)/);
+    const location = locationMatch ? locationMatch[0] : "Location Not Specified";
+
+    // Extract skills
+    const skillsSection = resumeContent.toLowerCase();
+    const commonSkills = [
+      'javascript', 'typescript', 'react', 'node.js', 'python', 'java', 'c++', 'html', 'css',
+      'sql', 'mongodb', 'mysql', 'postgresql', 'aws', 'azure', 'docker', 'kubernetes',
+      'git', 'linux', 'windows', 'communication', 'leadership', 'teamwork', 'problem solving'
+    ];
+    
+    const extractedSkills = commonSkills.filter(skill => 
+      skillsSection.includes(skill.toLowerCase())
+    );
+
+    const technicalSkills = extractedSkills.filter(skill => 
+      !['communication', 'leadership', 'teamwork', 'problem solving'].includes(skill)
+    );
+
+    const softSkills = extractedSkills.filter(skill =>
+      ['communication', 'leadership', 'teamwork', 'problem solving'].includes(skill)
+    );
+
+    // Extract experience years
+    const experienceMatch = resumeContent.match(/(\d+)\s*\+?\s*years?\s*(of\s*)?experience/i);
+    const experienceYears = experienceMatch ? parseInt(experienceMatch[1]) : 3;
+
+    return {
+      name,
+      email,
+      phone,
+      location,
+      skills: extractedSkills,
+      technicalSkills,
+      softSkills: softSkills.length > 0 ? softSkills : ['Communication', 'Teamwork', 'Problem Solving'],
+      experience: `${experienceYears} years`,
+      experienceYears,
+      education: "Education details extracted from resume",
+      educationLevel: "Bachelors",
+      certifications: [],
+      languages: ["English"],
+      previousRoles: [{
+        title: "Previous Role",
+        company: "Previous Company",
+        duration: "2020-2024",
+        responsibilities: ["Key responsibilities from resume"]
+      }],
+      projects: [],
+      achievements: [],
+      summary: `Professional with ${experienceYears} years of experience`,
+      keywords: extractedSkills
+    };
   }
 
   // Enhanced Analyst Agent with detailed scoring
@@ -311,7 +368,7 @@ export class LangGraphMultiAgentSystem {
       console.error('HR Agent error:', error);
       const fallbackHR = {
         agent: "HR Agent",
-        analysis: "Candidate shows strong professional background with relevant experience.",
+        analysis: `${candidate.name} shows strong professional background with relevant experience.`,
         recommendations: ["Consider for interview", "Assess technical skills in detail"],
         concerns: [],
         confidence: 78,
@@ -377,7 +434,7 @@ export class LangGraphMultiAgentSystem {
       console.error('Technical Evaluator error:', error);
       const fallbackTech = {
         agent: "Technical Evaluator",
-        analysis: "Candidate demonstrates solid technical foundation.",
+        analysis: `${candidate.name} demonstrates solid technical foundation.`,
         recommendations: ["Technical interview recommended", "Practical coding assessment"],
         concerns: ["Some advanced skills may need validation"],
         confidence: 82,
@@ -469,13 +526,13 @@ export class LangGraphMultiAgentSystem {
   }
 
   // LangGraph orchestration - sequential agent execution
-  async processCandidate(resumeText: string, jobReq: JobRequirements): Promise<CandidateAnalysis> {
+  async processCandidate(resumeContent: string, jobReq: JobRequirements): Promise<CandidateAnalysis> {
     console.log('Starting LangGraph multi-agent processing...');
     
     try {
       // Step 1: Recruiter Agent - Extract comprehensive data
       console.log('Executing Recruiter Agent...');
-      const candidate = await this.recruiterAgent(resumeText);
+      const candidate = await this.recruiterAgent(resumeContent);
       
       // Step 2: Analyst Agent - Score the candidate
       console.log('Executing Analyst Agent...');
@@ -520,18 +577,19 @@ export class LangGraphMultiAgentSystem {
     }
   }
 
-  // Process multiple resumes with top N ranking
-  async processMultipleResumes(resumeTexts: string[], jobReq: JobRequirements): Promise<CandidateAnalysis[]> {
+  // Process multiple resumes with proper content handling
+  async processMultipleResumes(resumeData: any[], jobReq: JobRequirements): Promise<CandidateAnalysis[]> {
     const analyses: CandidateAnalysis[] = [];
     const topN = parseInt(jobReq.topNCandidates) || 3;
     
-    console.log(`Processing ${resumeTexts.length} resumes for top ${topN} candidates...`);
+    console.log(`Processing ${resumeData.length} resumes for top ${topN} candidates...`);
     
     // Process each resume through the LangGraph pipeline
-    for (let i = 0; i < resumeTexts.length; i++) {
+    for (let i = 0; i < resumeData.length; i++) {
       try {
-        console.log(`Processing candidate ${i + 1}/${resumeTexts.length}...`);
-        const analysis = await this.processCandidate(resumeTexts[i], jobReq);
+        console.log(`Processing candidate ${i + 1}/${resumeData.length}...`);
+        const resumeContent = resumeData[i].content || resumeData[i]; // Handle both formats
+        const analysis = await this.processCandidate(resumeContent, jobReq);
         analyses.push(analysis);
       } catch (error) {
         console.error(`Error processing candidate ${i + 1}:`, error);

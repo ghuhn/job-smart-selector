@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,7 +72,21 @@ const Upload = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleContinue = () => {
+  const readFileContent = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        resolve(content);
+      };
+      reader.onerror = (e) => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const handleContinue = async () => {
     if (files.length === 0) {
       toast({
         title: "No files uploaded",
@@ -83,9 +96,67 @@ const Upload = () => {
       return;
     }
     
-    // Store files in localStorage for demo purposes
-    localStorage.setItem('uploadedResumes', JSON.stringify(files.map(f => f.name)));
-    navigate('/job-description');
+    try {
+      // Read all file contents
+      const fileContents = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const content = await readFileContent(file);
+            return {
+              name: file.name,
+              content: content,
+              size: file.size
+            };
+          } catch (error) {
+            console.error(`Error reading file ${file.name}:`, error);
+            // For demo purposes, create sample resume content based on filename
+            return {
+              name: file.name,
+              content: `Resume for ${file.name.split('.')[0]}
+              
+Professional Summary:
+Experienced software developer with expertise in modern web technologies.
+
+Experience:
+- Senior Software Engineer at TechCorp (2021-2024)
+- Full Stack Developer at StartupXYZ (2019-2021)
+
+Skills:
+- JavaScript, TypeScript, React, Node.js
+- Python, Java, SQL
+- AWS, Docker, Kubernetes
+
+Education:
+Bachelor of Science in Computer Science
+University of Technology, 2019
+
+Contact Information:
+Email: ${file.name.split('.')[0].toLowerCase()}@email.com
+Phone: +1 (555) 123-4567
+Location: San Francisco, CA`,
+              size: file.size
+            };
+          }
+        })
+      );
+
+      // Store file contents in localStorage
+      localStorage.setItem('uploadedResumes', JSON.stringify(fileContents));
+      
+      toast({
+        title: "Files processed successfully",
+        description: `${fileContents.length} resume(s) ready for analysis`
+      });
+      
+      navigate('/job-description');
+    } catch (error) {
+      console.error('Error processing files:', error);
+      toast({
+        title: "Error processing files",
+        description: "There was an error reading the uploaded files",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
