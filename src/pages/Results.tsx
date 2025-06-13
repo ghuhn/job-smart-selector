@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Download, User, Award, TrendingUp, FileText, Mail, Phone, MapPin, Star, CheckCircle, AlertTriangle, Brain, Code, Users } from "lucide-react";
+import { Download, Mail, Phone, MapPin, Star, CheckCircle, AlertTriangle, FileText, Code } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import ResultsHeader from "@/components/results/ResultsHeader";
+import SummaryCards from "@/components/results/SummaryCards";
+import AgentScoreCircles from "@/components/results/AgentScoreCircles";
 
 const Results = () => {
   const navigate = useNavigate();
@@ -144,22 +147,6 @@ const Results = () => {
     }
   };
 
-  const getAgentIcon = (agentName: string) => {
-    switch (agentName) {
-      case 'HR Agent': return Users;
-      case 'Technical Evaluator': return Code;
-      case 'Experience Analyzer': return TrendingUp;
-      case 'Cultural Fit Assessor': return User;
-      case 'Final Reviewer': return Brain;
-      default: return Brain;
-    }
-  };
-
-  const getAgentScoreFromFeedback = (agentFeedbacks: any[], agentName: string) => {
-    const feedback = agentFeedbacks.find(f => f.agent === agentName);
-    return feedback ? feedback.confidence : 0;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
@@ -186,67 +173,16 @@ const Results = () => {
     );
   }
 
-  const topN = jobDescription.topNCandidates || '3';
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              ← Start New Analysis
-            </Button>
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-gray-600">LangGraph Analysis Complete</span>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <ResultsHeader 
+        jobTitle={jobDescription.jobTitle}
+        department={jobDescription.department}
+        candidateCount={candidates.length}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">AI Analysis Results</h1>
-          <p className="text-xl text-gray-600">Top {candidates.length} candidates for {jobDescription.jobTitle} ranked by our multi-agent system</p>
-          {jobDescription.department && (
-            <p className="text-lg text-gray-500">Department: {jobDescription.department}</p>
-          )}
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <Award className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 mb-1">{candidates.length}</div>
-              <p className="text-gray-600">Top Candidates</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 mb-1">{candidates[0]?.scores.overall || 0}%</div>
-              <p className="text-gray-600">Best Match Score</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <User className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {JSON.parse(localStorage.getItem('uploadedResumes') || '[]').length}
-              </div>
-              <p className="text-gray-600">Resumes Analyzed</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <Brain className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 mb-1">5</div>
-              <p className="text-gray-600">AI Agents Used</p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SummaryCards candidates={candidates} />
 
         {/* Download Actions */}
         <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm mb-8">
@@ -386,54 +322,14 @@ const Results = () => {
                 </div>
 
                 {/* Professional Summary */}
-                {candidates[selectedCandidate].candidate.summary && (
+                {candidates[selectedCandidate].candidate.summary && candidates[selectedCandidate].candidate.summary !== "Not provided" && (
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Professional Summary</h3>
                     <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{candidates[selectedCandidate].candidate.summary}</p>
                   </div>
                 )}
 
-                {/* Individual Agent Scores */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Individual Agent Scores</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {['HR Agent', 'Technical Evaluator', 'Experience Analyzer', 'Cultural Fit Assessor', 'Final Reviewer'].map((agentName) => {
-                      const score = getAgentScoreFromFeedback(candidates[selectedCandidate].agentFeedbacks, agentName);
-                      const IconComponent = getAgentIcon(agentName);
-                      return (
-                        <div key={agentName} className="text-center">
-                          <div className="relative inline-block">
-                            <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                              <path
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke="#e5e7eb"
-                                strokeWidth="2"
-                              />
-                              <path
-                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke={score >= 90 ? "#10b981" : score >= 80 ? "#3b82f6" : score >= 70 ? "#f59e0b" : "#ef4444"}
-                                strokeWidth="2"
-                                strokeDasharray={`${score}, 100`}
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <IconComponent className="w-6 h-6 text-gray-600" />
-                            </div>
-                          </div>
-                          <div className={`text-sm font-bold mt-2 ${getScoreColor(score)}`}>
-                            {score}%
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {agentName.replace(' Agent', '').replace(' Evaluator', '').replace(' Analyzer', '').replace(' Assessor', '').replace(' Reviewer', '')}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <AgentScoreCircles candidate={candidates[selectedCandidate]} />
 
                 {/* Skills */}
                 <div className="grid md:grid-cols-2 gap-6">

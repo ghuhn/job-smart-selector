@@ -108,11 +108,31 @@ class LangGraphMultiAgentSystem {
     }
   }
 
+  private cleanText(text: string): string {
+    // Remove PDF artifacts, encoding issues, and strange characters
+    return text
+      // Remove PDF control characters and artifacts
+      .replace(/\/[A-Z]+\s*\[[^\]]*\]/g, '')
+      .replace(/\/[A-Z]+\s+\d+\s+\d+\s+R/g, '')
+      .replace(/>>$/gm, '')
+      .replace(/\|/g, ' ')
+      // Remove encoding artifacts
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+      // Clean up multiple spaces and line breaks
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n')
+      .trim();
+  }
+
   private extractCandidateFromResume(resume: any): Candidate {
     console.log('Extracting candidate data from resume:', resume.name);
     
     try {
-      const content = resume.content || '';
+      let content = resume.content || '';
+      
+      // Clean the content first to remove PDF artifacts
+      content = this.cleanText(content);
+      console.log('Cleaned content sample:', content.substring(0, 500));
       
       // Extract name from filename if not found in content
       const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ');
@@ -314,8 +334,13 @@ class LangGraphMultiAgentSystem {
   }
 
   private extractEducation(content: string): string {
+    console.log('Extracting education from content...');
+    
+    // Clean content first
+    const cleanContent = this.cleanText(content);
+    
     // Look for education section with multiple patterns
-    const eduSection = this.extractSection(content, [
+    const eduSection = this.extractSection(cleanContent, [
       'education', 
       'academic background', 
       'educational background',
@@ -323,47 +348,54 @@ class LangGraphMultiAgentSystem {
       'university', 
       'college',
       'academic experience',
-      'qualifications'
+      'qualifications',
+      'academic credentials'
     ]);
     
-    if (eduSection) {
-      // Clean up the education section
-      const lines = eduSection.split('\n')
+    console.log('Found education section:', eduSection);
+    
+    if (eduSection && eduSection.length > 10) {
+      // Clean up the education section further
+      const cleanEduSection = eduSection
+        .split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 0)
+        .filter(line => line.length > 3 && !line.match(/^[\/\|\-\=\>\<]+$/))
         .slice(0, 5); // Take first 5 meaningful lines
       
-      if (lines.length > 0) {
-        return lines.join(' | ');
+      if (cleanEduSection.length > 0) {
+        const result = cleanEduSection.join(' | ');
+        console.log('Processed education result:', result);
+        return result;
       }
     }
     
-    // Fallback: look for degree patterns anywhere in the content
+    // Enhanced fallback: look for degree patterns anywhere in the content
     const degreePatterns = [
-      /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)\s+(?:of\s+)?(?:Science|Arts|Engineering|Business|Computer Science|Information Technology)[^,\n]*/gi,
-      /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)/i,
-      /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)[^,\n]*/gi,
-      /(?:Associate|AA|AS|A\.S\.|A\.A\.)/i,
-      /(?:Diploma|Certificate)\s+in\s+[^,\n]*/gi
+      /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)\s+(?:of\s+|in\s+)?(?:Science|Arts|Engineering|Business|Computer Science|Information Technology|Mathematics|Physics|Chemistry)[^,\n\|]*/gi,
+      /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)\s+(?:of\s+|in\s+)?[^,\n\|]*/gi,
+      /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)\s+(?:in\s+)?[^,\n\|]*/gi,
+      /(?:Associate|AA|AS|A\.S\.|A\.A\.)\s+(?:of\s+|in\s+)?[^,\n\|]*/gi,
+      /(?:Diploma|Certificate)\s+(?:of\s+|in\s+)[^,\n\|]*/gi
     ];
     
     const foundDegrees: string[] = [];
     degreePatterns.forEach(pattern => {
-      const matches = content.match(pattern);
+      const matches = cleanContent.match(pattern);
       if (matches) {
         foundDegrees.push(...matches.map(match => match.trim()));
       }
     });
     
-    // Also look for university/college names
+    // Also look for university/college names with years
     const institutionPatterns = [
-      /(?:University|College|Institute|School)\s+of\s+[^,\n]*/gi,
-      /[A-Z][a-z]+\s+(?:University|College|Institute)[^,\n]*/gi
+      /(?:University|College|Institute|School)\s+of\s+[^,\n\|]*(?:\s+\d{4})?/gi,
+      /[A-Z][a-z]+\s+(?:University|College|Institute)(?:\s+\d{4})?[^,\n\|]*/gi,
+      /\d{4}\s*[-–]\s*\d{4}\s+[A-Z][^,\n\|]*/gi
     ];
     
     const foundInstitutions: string[] = [];
     institutionPatterns.forEach(pattern => {
-      const matches = content.match(pattern);
+      const matches = cleanContent.match(pattern);
       if (matches) {
         foundInstitutions.push(...matches.map(match => match.trim()));
       }
@@ -373,10 +405,16 @@ class LangGraphMultiAgentSystem {
     const allEducation = [...foundDegrees, ...foundInstitutions];
     if (allEducation.length > 0) {
       // Remove duplicates and join
-      const uniqueEducation = [...new Set(allEducation)];
-      return uniqueEducation.slice(0, 3).join(' | ');
+      const uniqueEducation = [...new Set(allEducation)]
+        .filter(edu => edu.length > 5) // Filter out very short matches
+        .map(edu => edu.replace(/\s+/g, ' ').trim()); // Clean up spacing
+      
+      const result = uniqueEducation.slice(0, 3).join(' | ');
+      console.log('Fallback education result:', result);
+      return result;
     }
     
+    console.log('No education found, returning "Not provided"');
     return "Not provided";
   }
 
