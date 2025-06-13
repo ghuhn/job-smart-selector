@@ -12,119 +12,75 @@ const Results = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(0);
   const [candidates, setCandidates] = useState<CandidateAnalysis[]>([]);
   const [jobDescription, setJobDescription] = useState<any>({});
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    loadResults();
+  }, []);
+
+  const loadResults = () => {
+    console.log('Loading results...');
+    
     // Load analysis results and job description from localStorage
     const savedResults = localStorage.getItem('analysisResults');
     const savedJobDesc = localStorage.getItem('jobDescription');
+    const uploadedResumes = localStorage.getItem('uploadedResumes');
     
-    if (savedResults) {
-      try {
-        const results = JSON.parse(savedResults);
-        setCandidates(results);
-      } catch (error) {
-        console.error('Error parsing saved results:', error);
-        loadMockData();
-      }
-    } else {
-      loadMockData();
-    }
-
+    console.log('Saved results:', savedResults);
+    console.log('Uploaded resumes:', uploadedResumes);
+    
     if (savedJobDesc) {
       try {
         const jobDesc = JSON.parse(savedJobDesc);
         setJobDescription(jobDesc);
+        console.log('Loaded job description:', jobDesc);
       } catch (error) {
         console.error('Error parsing job description:', error);
       }
     }
-  }, []);
-
-  const loadMockData = () => {
-    const mockCandidates: CandidateAnalysis[] = [
-      {
-        rank: 1,
-        candidate: {
-          name: "Sarah Johnson",
-          email: "sarah.johnson@email.com", 
-          phone: "+1 (555) 123-4567",
-          location: "San Francisco, CA",
-          skills: ["React", "Node.js", "TypeScript", "AWS", "PostgreSQL", "Docker"],
-          technicalSkills: ["React", "Node.js", "TypeScript", "AWS", "PostgreSQL", "Docker"],
-          softSkills: ["Leadership", "Communication", "Problem Solving", "Team Collaboration"],
-          experience: "6 years",
-          experienceYears: 6,
-          education: "MS Computer Science, Stanford University",
-          educationLevel: "Masters",
-          certifications: ["AWS Certified Solutions Architect", "Certified Kubernetes Administrator"],
-          languages: ["English", "Spanish"],
-          previousRoles: [
-            {
-              title: "Senior Software Engineer",
-              company: "TechCorp",
-              duration: "2021-2024",
-              responsibilities: ["Led team of 5 developers", "Architected microservices platform", "Improved system performance by 40%"]
-            }
-          ],
-          projects: [
-            {
-              name: "E-commerce Platform Redesign",
-              description: "Full-stack development of modern e-commerce platform",
-              technologies: ["React", "Node.js", "PostgreSQL", "AWS"]
-            }
-          ],
-          achievements: ["Employee of the Year 2023", "Led successful product launch", "Mentored 10+ junior developers"],
-          summary: "Experienced full-stack developer with strong leadership skills and proven track record in scalable web applications",
-          keywords: ["React", "Node.js", "Leadership", "Microservices", "AWS"]
-        },
-        scores: {
-          technical: 96,
-          experience: 92,
-          education: 95,
-          communication: 93,
-          cultural_fit: 94,
-          project_relevance: 97,
-          skill_match: 95,
-          overall: 94
-        },
-        strengths: [
-          "Exceptional technical leadership experience",
-          "Strong full-stack development skills with modern frameworks",
-          "Proven track record in scalable system architecture",
-          "Excellent mentoring and team collaboration abilities"
-        ],
-        redFlags: [],
-        recommendation: "Highly recommended - Perfect match for the role with exceptional technical skills, leadership experience, and cultural fit. Ready for immediate impact.",
-        agentFeedbacks: [
-          {
-            agent: "HR Agent",
-            analysis: "Outstanding candidate with excellent leadership qualities and strong career progression.",
-            recommendations: ["Fast-track for interview", "Consider for senior role"],
-            concerns: [],
-            strengths: ["Strong leadership qualities", "Excellent career progression", "Team collaboration skills"],
-            confidence: 95
-          },
-          {
-            agent: "Technical Evaluator",
-            analysis: "Exceptional technical depth with relevant project experience and modern technology stack.",
-            recommendations: ["Technical deep-dive interview", "Architecture discussion"],
-            concerns: [],
-            strengths: ["Modern technology stack", "Scalable system architecture", "Technical leadership"],
-            confidence: 96
-          }
-        ],
-        detailedAnalysis: {
-          skillGaps: [],
-          experienceMatch: "Perfect alignment with role requirements and seniority level",
-          educationFit: "Advanced degree from top university exceeds requirements",
-          projectRelevance: "Projects directly relevant to role with demonstrated impact",
-          growthPotential: "High potential for leadership roles and technical advancement"
-        },
-        overallFit: "Excellent"
+    
+    if (savedResults) {
+      try {
+        const results = JSON.parse(savedResults);
+        console.log('Parsed analysis results:', results);
+        
+        if (results && results.length > 0) {
+          setCandidates(results);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing saved results:', error);
       }
-      // Add more mock candidates as needed...
-    ];
-    setCandidates(mockCandidates);
+    }
+    
+    // If no valid results but we have uploaded resumes, redirect back to processing
+    if (uploadedResumes) {
+      try {
+        const resumes = JSON.parse(uploadedResumes);
+        if (resumes && resumes.length > 0) {
+          console.log('No analysis results found but resumes exist, redirecting to processing...');
+          toast({
+            title: "No analysis results found",
+            description: "Redirecting back to process your resumes",
+            variant: "destructive"
+          });
+          navigate('/processing');
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing uploaded resumes:', error);
+      }
+    }
+    
+    // If we get here, there's no data at all
+    console.log('No data found, redirecting to upload...');
+    toast({
+      title: "No data found",
+      description: "Please upload resumes first",
+      variant: "destructive"
+    });
+    navigate('/upload');
   };
 
   const handleDownload = (type: 'topN' | 'detailed' | 'single', candidateIndex?: number) => {
@@ -140,12 +96,12 @@ const Results = () => {
     } else if (type === 'detailed') {
       filename = `detailed-analysis-report-${jobDescription.jobTitle?.replace(/\s+/g, '-').toLowerCase()}.txt`;
       content = `COMPREHENSIVE CANDIDATE ANALYSIS REPORT\n\nJob Title: ${jobDescription.jobTitle}\nDepartment: ${jobDescription.department}\nExperience Level: ${jobDescription.experienceLevel}\nRequired Skills: ${jobDescription.requiredSkills}\nTop ${topN} Candidates Selected\n\n${'='.repeat(100)}\n\n${candidates.map(analysis => 
-        `CANDIDATE: ${analysis.candidate.name}\nRANK: ${analysis.rank}\nOVERALL SCORE: ${analysis.scores.overall}% (${analysis.overallFit} Fit)\n\nCONTACT INFORMATION:\nEmail: ${analysis.candidate.email}\nPhone: ${analysis.candidate.phone}\nLocation: ${analysis.candidate.location}\nLinkedIn: ${analysis.candidate.linkedIn || 'Not provided'}\nGitHub: ${analysis.candidate.github || 'Not provided'}\n\nPROFESSIONAL SUMMARY:\nExperience: ${analysis.candidate.experience} (${analysis.candidate.experienceYears} years)\nEducation: ${analysis.candidate.education}\nCertifications: ${analysis.candidate.certifications.join(', ') || 'None listed'}\nLanguages: ${analysis.candidate.languages.join(', ')}\n\nTECHNICAL SKILLS:\n${analysis.candidate.technicalSkills.join(', ')}\n\nSOFT SKILLS:\n${analysis.candidate.softSkills.join(', ')}\n\nKEY PROJECTS:\n${analysis.candidate.projects.map(p => `- ${p.name}: ${p.description} (${p.technologies.join(', ')})`).join('\n')}\n\nACHIEVEMENTS:\n${analysis.candidate.achievements.map(a => `- ${a}`).join('\n')}\n\nDETAILED SCORE BREAKDOWN:\nTechnical Skills: ${analysis.scores.technical}%\nExperience Match: ${analysis.scores.experience}%\nEducation Fit: ${analysis.scores.education}%\nCommunication: ${analysis.scores.communication}%\nCultural Fit: ${analysis.scores.cultural_fit}%\nProject Relevance: ${analysis.scores.project_relevance}%\nSkill Match: ${analysis.scores.skill_match}%\n\nKEY STRENGTHS:\n${analysis.strengths.map(s => `- ${s}`).join('\n')}\n\nAREAS OF CONCERN:\n${analysis.redFlags.length > 0 ? analysis.redFlags.map(r => `- ${r}`).join('\n') : '- None identified'}\n\nDETAILED ANALYSIS:\nSkill Gaps: ${analysis.detailedAnalysis.skillGaps.join(', ') || 'None identified'}\nExperience Match: ${analysis.detailedAnalysis.experienceMatch}\nEducation Fit: ${analysis.detailedAnalysis.educationFit}\nProject Relevance: ${analysis.detailedAnalysis.projectRelevance}\nGrowth Potential: ${analysis.detailedAnalysis.growthPotential}\n\nAI AGENT FEEDBACK:\n${analysis.agentFeedbacks.map(feedback => `${feedback.agent} (Confidence: ${feedback.confidence}%):\n${feedback.analysis}\nRecommendations: ${feedback.recommendations.join(', ')}\nConcerns: ${feedback.concerns.join(', ') || 'None'}`).join('\n\n')}\n\nFINAL RECOMMENDATION:\n${analysis.recommendation}\n\n${'='.repeat(100)}\n\n`
+        `CANDIDATE: ${analysis.candidate.name}\nRANK: ${analysis.rank}\nOVERALL SCORE: ${analysis.scores.overall}% (${analysis.overallFit} Fit)\n\nCONTACT INFORMATION:\nEmail: ${analysis.candidate.email}\nPhone: ${analysis.candidate.phone}\nLocation: ${analysis.candidate.location}\n\nPROFESSIONAL SUMMARY:\nExperience: ${analysis.candidate.experience} (${analysis.candidate.experienceYears} years)\nEducation: ${analysis.candidate.education}\nCertifications: ${analysis.candidate.certifications.join(', ') || 'None listed'}\nLanguages: ${analysis.candidate.languages.join(', ')}\n\nTECHNICAL SKILLS:\n${analysis.candidate.technicalSkills.join(', ')}\n\nSOFT SKILLS:\n${analysis.candidate.softSkills.join(', ')}\n\nKEY PROJECTS:\n${analysis.candidate.projects.map(p => `- ${p.name}: ${p.description} (${p.technologies.join(', ')})`).join('\n')}\n\nACHIEVEMENTS:\n${analysis.candidate.achievements.map(a => `- ${a}`).join('\n')}\n\nDETAILED SCORE BREAKDOWN:\nTechnical Skills: ${analysis.scores.technical}%\nExperience Match: ${analysis.scores.experience}%\nEducation Fit: ${analysis.scores.education}%\nCommunication: ${analysis.scores.communication}%\nCultural Fit: ${analysis.scores.cultural_fit}%\nProject Relevance: ${analysis.scores.project_relevance}%\nSkill Match: ${analysis.scores.skill_match}%\n\nKEY STRENGTHS:\n${analysis.strengths.map(s => `- ${s}`).join('\n')}\n\nAREAS OF CONCERN:\n${analysis.redFlags.length > 0 ? analysis.redFlags.map(r => `- ${r}`).join('\n') : '- None identified'}\n\nFINAL RECOMMENDATION:\n${analysis.recommendation}\n\n${'='.repeat(100)}\n\n`
       ).join('')}`;
     } else if (type === 'single' && candidateIndex !== undefined) {
       const analysis = candidates[candidateIndex];
       filename = `${analysis.candidate.name.replace(/\s+/g, '-').toLowerCase()}-comprehensive-profile.txt`;
-      content = `COMPREHENSIVE CANDIDATE PROFILE\n\nCANDIDATE: ${analysis.candidate.name}\nRANK: ${analysis.rank} of ${candidates.length}\nOVERALL SCORE: ${analysis.scores.overall}% (${analysis.overallFit} Fit)\n\nCONTACT INFORMATION:\nEmail: ${analysis.candidate.email}\nPhone: ${analysis.candidate.phone}\nLocation: ${analysis.candidate.location}\nLinkedIn: ${analysis.candidate.linkedIn || 'Not provided'}\nGitHub: ${analysis.candidate.github || 'Not provided'}\n\nPROFESSIONAL SUMMARY:\n${analysis.candidate.summary}\n\nEXPERIENCE:\n${analysis.candidate.experience} (${analysis.candidate.experienceYears} years)\n\nEDUCATION:\n${analysis.candidate.education}\nLevel: ${analysis.candidate.educationLevel}\n\nCERTIFICATIONS:\n${analysis.candidate.certifications.map(c => `- ${c}`).join('\n') || 'None listed'}\n\nLANGUAGES:\n${analysis.candidate.languages.join(', ')}\n\nTECHNICAL SKILLS:\n${analysis.candidate.technicalSkills.join(', ')}\n\nSOFT SKILLS:\n${analysis.candidate.softSkills.join(', ')}\n\nWORK EXPERIENCE:\n${analysis.candidate.previousRoles.map(role => `${role.title} at ${role.company} (${role.duration})\nKey Responsibilities:\n${role.responsibilities.map(r => `- ${r}`).join('\n')}`).join('\n\n')}\n\nKEY PROJECTS:\n${analysis.candidate.projects.map(p => `${p.name}:\n${p.description}\nTechnologies: ${p.technologies.join(', ')}`).join('\n\n')}\n\nACHIEVEMENTS:\n${analysis.candidate.achievements.map(a => `- ${a}`).join('\n')}\n\nDETAILED SCORING:\nTechnical Skills: ${analysis.scores.technical}%\nExperience Match: ${analysis.scores.experience}%\nEducation Fit: ${analysis.scores.education}%\nCommunication: ${analysis.scores.communication}%\nCultural Fit: ${analysis.scores.cultural_fit}%\nProject Relevance: ${analysis.scores.project_relevance}%\nSkill Match: ${analysis.scores.skill_match}%\n\nSTRENGTHS:\n${analysis.strengths.map(s => `- ${s}`).join('\n')}\n\nAREAS FOR IMPROVEMENT:\n${analysis.redFlags.length > 0 ? analysis.redFlags.map(r => `- ${r}`).join('\n') : '- None identified'}\n\nDETAILED ANALYSIS:\nSkill Gaps: ${analysis.detailedAnalysis.skillGaps.join(', ') || 'None identified'}\nExperience Match: ${analysis.detailedAnalysis.experienceMatch}\nEducation Fit: ${analysis.detailedAnalysis.educationFit}\nProject Relevance: ${analysis.detailedAnalysis.projectRelevance}\nGrowth Potential: ${analysis.detailedAnalysis.growthPotential}\n\nAI AGENT ANALYSIS:\n${analysis.agentFeedbacks.map(feedback => `\n${feedback.agent.toUpperCase()} ASSESSMENT (Confidence: ${feedback.confidence}%):\n${feedback.analysis}\n\nRecommendations:\n${feedback.recommendations.map(r => `- ${r}`).join('\n')}\n\nConcerns:\n${feedback.concerns.length > 0 ? feedback.concerns.map(c => `- ${c}`).join('\n') : '- None identified'}`).join('\n')}\n\nFINAL RECOMMENDATION:\n${analysis.recommendation}`;
+      content = `COMPREHENSIVE CANDIDATE PROFILE\n\nCANDIDATE: ${analysis.candidate.name}\nRANK: ${analysis.rank} of ${candidates.length}\nOVERALL SCORE: ${analysis.scores.overall}% (${analysis.overallFit} Fit)\n\nCONTACT INFORMATION:\nEmail: ${analysis.candidate.email}\nPhone: ${analysis.candidate.phone}\nLocation: ${analysis.candidate.location}\n\nPROFESSIONAL SUMMARY:\n${analysis.candidate.summary}\n\nEXPERIENCE:\n${analysis.candidate.experience} (${analysis.candidate.experienceYears} years)\n\nEDUCATION:\n${analysis.candidate.education}\nLevel: ${analysis.candidate.educationLevel}\n\nCERTIFICATIONS:\n${analysis.candidate.certifications.map(c => `- ${c}`).join('\n') || 'None listed'}\n\nLANGUAGES:\n${analysis.candidate.languages.join(', ')}\n\nTECHNICAL SKILLS:\n${analysis.candidate.technicalSkills.join(', ')}\n\nSOFT SKILLS:\n${analysis.candidate.softSkills.join(', ')}\n\nWORK EXPERIENCE:\n${analysis.candidate.previousRoles.map(role => `${role.title} at ${role.company} (${role.duration})\nKey Responsibilities:\n${role.responsibilities.map(r => `- ${r}`).join('\n')}`).join('\n\n')}\n\nKEY PROJECTS:\n${analysis.candidate.projects.map(p => `${p.name}:\n${p.description}\nTechnologies: ${p.technologies.join(', ')}`).join('\n\n')}\n\nACHIEVEMENTS:\n${analysis.candidate.achievements.map(a => `- ${a}`).join('\n')}\n\nDETAILED SCORING:\nTechnical Skills: ${analysis.scores.technical}%\nExperience Match: ${analysis.scores.experience}%\nEducation Fit: ${analysis.scores.education}%\nCommunication: ${analysis.scores.communication}%\nCultural Fit: ${analysis.scores.cultural_fit}%\nProject Relevance: ${analysis.scores.project_relevance}%\nSkill Match: ${analysis.scores.skill_match}%\n\nSTRENGTHS:\n${analysis.strengths.map(s => `- ${s}`).join('\n')}\n\nAREAS FOR IMPROVEMENT:\n${analysis.redFlags.length > 0 ? analysis.redFlags.map(r => `- ${r}`).join('\n') : '- None identified'}\n\nFINAL RECOMMENDATION:\n${analysis.recommendation}`;
     }
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -188,12 +144,27 @@ const Results = () => {
     }
   };
 
-  if (candidates.length === 0) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading Results...</h1>
           <p className="text-gray-600">Please wait while we prepare your analysis results.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (candidates.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">No Results Found</h1>
+          <p className="text-gray-600 mb-6">We couldn't find any analysis results. Please upload resumes and process them first.</p>
+          <Button onClick={() => navigate('/upload')}>
+            Go to Upload
+          </Button>
         </div>
       </div>
     );
@@ -221,7 +192,7 @@ const Results = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">AI Analysis Results</h1>
-          <p className="text-xl text-gray-600">Top {topN} candidates for {jobDescription.jobTitle} ranked by our multi-agent system</p>
+          <p className="text-xl text-gray-600">Top {candidates.length} candidates for {jobDescription.jobTitle} ranked by our multi-agent system</p>
           {jobDescription.department && (
             <p className="text-lg text-gray-500">Department: {jobDescription.department}</p>
           )}
@@ -276,7 +247,7 @@ const Results = () => {
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 <Download className="mr-2 h-4 w-4" />
-                Top {topN} Summary
+                Top {candidates.length} Summary
               </Button>
               <Button 
                 onClick={() => handleDownload('detailed')}
@@ -573,9 +544,9 @@ const Results = () => {
                           <div>
                             <span className="text-sm font-medium text-red-700">Concerns:</span>
                             <ul className="text-sm text-red-600 ml-4">
-                              {feedback.concerns.map((concern, conIndex) => (
-                                <li key={conIndex}>• {concern}</li>
-                              ))}
+                              {feedback.concerns.length > 0 ? feedback.concerns.map(c => (
+                                <li key={c}>• {c}</li>
+                              )) : '- None identified'}
                             </ul>
                           </div>
                         )}
