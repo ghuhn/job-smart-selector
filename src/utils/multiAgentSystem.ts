@@ -200,14 +200,34 @@ class LangGraphMultiAgentSystem {
 
   private extractPhone(content: string): string {
     const phonePatterns = [
-      /\+?1?\s*\(?([0-9]{3})\)?[-.\s]*([0-9]{3})[-.\s]*([0-9]{4})/,
-      /\(?\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}/
+      // Standard US formats with country code
+      /\+?1[-.\s]?\(?([0-9]{3})\)?[-.\s]*([0-9]{3})[-.\s]*([0-9]{4})/,
+      // US format without country code
+      /\(?\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}/,
+      // International formats
+      /\+\d{1,3}[-.\s]?\d{1,14}/,
+      // Phone: label format
+      /(?:phone|tel|mobile|cell):\s*([+\d\s\-\(\)\.]+)/i,
+      // Simple number sequences
+      /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/,
+      // Parentheses format
+      /\(\d{3}\)\s*\d{3}[-.\s]\d{4}/
     ];
     
     for (const pattern of phonePatterns) {
       const match = content.match(pattern);
       if (match) {
-        return match[0];
+        // Clean up the matched phone number
+        let phone = match[0];
+        // If it's from a labeled match, use the captured group
+        if (match[1] && pattern.source.includes('phone|tel|mobile|cell')) {
+          phone = match[1];
+        }
+        // Clean and format
+        phone = phone.replace(/[^\d+]/g, '').replace(/^1/, '+1');
+        if (phone.length >= 10) {
+          return phone;
+        }
       }
     }
     
@@ -294,22 +314,87 @@ class LangGraphMultiAgentSystem {
   }
 
   private extractEducation(content: string): string {
-    const eduSection = this.extractSection(content, ['education', 'academic', 'university', 'college']);
+    // Look for education section with multiple patterns
+    const eduSection = this.extractSection(content, [
+      'education', 
+      'academic background', 
+      'educational background',
+      'academic qualifications',
+      'university', 
+      'college',
+      'academic experience',
+      'qualifications'
+    ]);
+    
     if (eduSection) {
-      const lines = eduSection.split('\n').filter(line => line.trim());
-      const education = lines.slice(0, 2).join(', ');
-      return education || "Not provided";
+      // Clean up the education section
+      const lines = eduSection.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .slice(0, 5); // Take first 5 meaningful lines
+      
+      if (lines.length > 0) {
+        return lines.join(' | ');
+      }
     }
+    
+    // Fallback: look for degree patterns anywhere in the content
+    const degreePatterns = [
+      /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)\s+(?:of\s+)?(?:Science|Arts|Engineering|Business|Computer Science|Information Technology)[^,\n]*/gi,
+      /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)/i,
+      /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)[^,\n]*/gi,
+      /(?:Associate|AA|AS|A\.S\.|A\.A\.)/i,
+      /(?:Diploma|Certificate)\s+in\s+[^,\n]*/gi
+    ];
+    
+    const foundDegrees: string[] = [];
+    degreePatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) {
+        foundDegrees.push(...matches.map(match => match.trim()));
+      }
+    });
+    
+    // Also look for university/college names
+    const institutionPatterns = [
+      /(?:University|College|Institute|School)\s+of\s+[^,\n]*/gi,
+      /[A-Z][a-z]+\s+(?:University|College|Institute)[^,\n]*/gi
+    ];
+    
+    const foundInstitutions: string[] = [];
+    institutionPatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) {
+        foundInstitutions.push(...matches.map(match => match.trim()));
+      }
+    });
+    
+    // Combine degrees and institutions
+    const allEducation = [...foundDegrees, ...foundInstitutions];
+    if (allEducation.length > 0) {
+      // Remove duplicates and join
+      const uniqueEducation = [...new Set(allEducation)];
+      return uniqueEducation.slice(0, 3).join(' | ');
+    }
+    
     return "Not provided";
   }
 
   private extractEducationLevel(content: string): string {
-    const degrees = ['PhD', 'Masters', 'Bachelor', 'Associate', 'Diploma'];
-    for (const degree of degrees) {
-      if (content.toLowerCase().includes(degree.toLowerCase())) {
-        return degree;
+    const levels = [
+      { pattern: /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)/i, level: "PhD" },
+      { pattern: /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)/i, level: "Masters" },
+      { pattern: /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)/i, level: "Bachelor" },
+      { pattern: /(?:Associate|AA|AS|A\.S\.|A\.A\.)/i, level: "Associate" },
+      { pattern: /(?:Diploma|Certificate)/i, level: "Diploma" }
+    ];
+    
+    for (const { pattern, level } of levels) {
+      if (pattern.test(content)) {
+        return level;
       }
     }
+    
     return "Not provided";
   }
 
@@ -452,17 +537,44 @@ class LangGraphMultiAgentSystem {
 
   private extractSection(content: string, sectionNames: string[]): string {
     for (const sectionName of sectionNames) {
-      const pattern = new RegExp(`^\\s*${sectionName}\\s*:?\\s*$`, 'gmi');
-      const match = pattern.exec(content);
+      // Try multiple patterns for section headers
+      const patterns = [
+        new RegExp(`^\\s*${sectionName}\\s*:?\\s*$`, 'gmi'),
+        new RegExp(`^\\s*${sectionName}\\s*[-=]+\\s*$`, 'gmi'),
+        new RegExp(`\\b${sectionName}\\b.*:`, 'gmi')
+      ];
       
-      if (match) {
-        const startIndex = match.index + match[0].length;
-        const nextSectionPattern = /^\s*[A-Z][A-Z\s]*\s*:?\s*$/gm;
-        nextSectionPattern.lastIndex = startIndex;
-        const nextMatch = nextSectionPattern.exec(content);
+      for (const pattern of patterns) {
+        const match = pattern.exec(content);
         
-        const endIndex = nextMatch ? nextMatch.index : content.length;
-        return content.substring(startIndex, endIndex).trim();
+        if (match) {
+          const startIndex = match.index + match[0].length;
+          
+          // Look for the next section header
+          const nextSectionPattern = /^\s*[A-Z][A-Z\s]*\s*:?\s*$/gm;
+          nextSectionPattern.lastIndex = startIndex;
+          const nextMatch = nextSectionPattern.exec(content);
+          
+          // Also check for common section dividers
+          const dividerPattern = /^\s*[-=]{3,}\s*$/gm;
+          dividerPattern.lastIndex = startIndex;
+          const dividerMatch = dividerPattern.exec(content);
+          
+          // Use the closest boundary
+          let endIndex = content.length;
+          if (nextMatch && dividerMatch) {
+            endIndex = Math.min(nextMatch.index, dividerMatch.index);
+          } else if (nextMatch) {
+            endIndex = nextMatch.index;
+          } else if (dividerMatch) {
+            endIndex = dividerMatch.index;
+          }
+          
+          const sectionContent = content.substring(startIndex, endIndex).trim();
+          if (sectionContent.length > 0) {
+            return sectionContent;
+          }
+        }
       }
     }
     return "";
