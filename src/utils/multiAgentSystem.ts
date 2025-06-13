@@ -151,25 +151,25 @@ class LangGraphMultiAgentSystem {
       const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ');
       return {
         name: nameFromFile,
-        email: `${nameFromFile.toLowerCase().replace(/\s+/g, '.')}@email.com`,
-        phone: "+1 (555) 123-4567",
-        location: "Not specified",
-        skills: ["Resume parsing required"],
-        technicalSkills: ["Resume parsing required"],
-        softSkills: ["Communication", "Problem Solving"],
-        experience: "Not specified",
+        email: "Not provided",
+        phone: "Not provided",
+        location: "Not provided",
+        skills: [],
+        technicalSkills: [],
+        softSkills: [],
+        experience: "Not provided",
         experienceYears: 0,
-        education: "Not specified",
-        educationLevel: "Not specified",
+        education: "Not provided",
+        educationLevel: "Not provided",
         certifications: [],
-        languages: ["English"],
+        languages: [],
         previousRoles: [],
         projects: [],
         achievements: [],
-        summary: `Resume content needs to be parsed for ${nameFromFile}`,
+        summary: "Not provided",
         keywords: [],
-        linkedIn: "",
-        github: ""
+        linkedIn: "Not provided",
+        github: "Not provided"
       };
     }
   }
@@ -195,7 +195,7 @@ class LangGraphMultiAgentSystem {
   private extractEmail(content: string): string {
     const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
     const match = content.match(emailPattern);
-    return match ? match[0] : "email@example.com";
+    return match ? match[0] : "Not provided";
   }
 
   private extractPhone(content: string): string {
@@ -211,7 +211,7 @@ class LangGraphMultiAgentSystem {
       }
     }
     
-    return "+1 (555) 123-4567";
+    return "Not provided";
   }
 
   private extractLocation(content: string): string {
@@ -228,12 +228,13 @@ class LangGraphMultiAgentSystem {
       }
     }
     
-    return "Location not specified";
+    return "Not provided";
   }
 
   private extractSkills(content: string): string[] {
     const skillsSection = this.extractSection(content, ['skills', 'technical skills', 'competencies']);
-    return this.parseSkillsList(skillsSection);
+    const skills = this.parseSkillsList(skillsSection);
+    return skills.length > 0 ? skills : [];
   }
 
   private extractTechnicalSkills(content: string): string[] {
@@ -246,7 +247,8 @@ class LangGraphMultiAgentSystem {
       content.toLowerCase().includes(skill.toLowerCase())
     );
     
-    return [...new Set([...skills, ...foundTechSkills])];
+    const allSkills = [...new Set([...skills, ...foundTechSkills])];
+    return allSkills.length > 0 ? allSkills : [];
   }
 
   private extractSoftSkills(content: string): string[] {
@@ -259,7 +261,7 @@ class LangGraphMultiAgentSystem {
       content.toLowerCase().includes(skill.toLowerCase())
     );
     
-    return foundSoftSkills.length > 0 ? foundSoftSkills : ['Communication', 'Problem Solving', 'Teamwork'];
+    return foundSoftSkills.length > 0 ? foundSoftSkills : [];
   }
 
   private extractExperience(content: string): string {
@@ -276,7 +278,7 @@ class LangGraphMultiAgentSystem {
       return `${Math.min(jobCount * 2, 15)} years (estimated)`;
     }
     
-    return "Experience not specified";
+    return "Not provided";
   }
 
   private extractExperienceYears(content: string): number {
@@ -288,16 +290,17 @@ class LangGraphMultiAgentSystem {
     
     // Estimate from job entries
     const jobCount = (content.match(/\d{4}\s*[-–]\s*(\d{4}|present|current)/gi) || []).length;
-    return Math.min(jobCount * 2, 15);
+    return jobCount > 0 ? Math.min(jobCount * 2, 15) : 0;
   }
 
   private extractEducation(content: string): string {
     const eduSection = this.extractSection(content, ['education', 'academic', 'university', 'college']);
     if (eduSection) {
       const lines = eduSection.split('\n').filter(line => line.trim());
-      return lines.slice(0, 2).join(', ') || "Education not specified";
+      const education = lines.slice(0, 2).join(', ');
+      return education || "Not provided";
     }
-    return "Education not specified";
+    return "Not provided";
   }
 
   private extractEducationLevel(content: string): string {
@@ -307,13 +310,14 @@ class LangGraphMultiAgentSystem {
         return degree;
       }
     }
-    return "Not specified";
+    return "Not provided";
   }
 
   private extractCertifications(content: string): string[] {
     const certSection = this.extractSection(content, ['certifications', 'certificates', 'credentials']);
     if (certSection) {
-      return this.parseSkillsList(certSection);
+      const certs = this.parseSkillsList(certSection);
+      if (certs.length > 0) return certs;
     }
     
     // Look for common certification patterns
@@ -339,9 +343,10 @@ class LangGraphMultiAgentSystem {
   private extractLanguages(content: string): string[] {
     const langSection = this.extractSection(content, ['languages']);
     if (langSection) {
-      return this.parseSkillsList(langSection);
+      const languages = this.parseSkillsList(langSection);
+      return languages.length > 0 ? languages : [];
     }
-    return ['English'];
+    return [];
   }
 
   private extractPreviousRoles(content: string): Array<{title: string, company: string, duration: string, responsibilities: string[]}> {
@@ -408,10 +413,11 @@ class LangGraphMultiAgentSystem {
   private extractAchievements(content: string): string[] {
     const achieveSection = this.extractSection(content, ['achievements', 'accomplishments', 'awards']);
     if (achieveSection) {
-      return achieveSection.split('\n')
+      const achievements = achieveSection.split('\n')
         .filter(line => line.trim())
         .map(line => line.replace(/^[-•]\s*/, '').trim())
         .filter(line => line.length > 10);
+      return achievements.length > 0 ? achievements : [];
     }
     return [];
   }
@@ -419,12 +425,11 @@ class LangGraphMultiAgentSystem {
   private extractSummary(content: string): string {
     const summarySection = this.extractSection(content, ['summary', 'profile', 'objective', 'about']);
     if (summarySection) {
-      return summarySection.split('\n').filter(line => line.trim()).join(' ').substring(0, 500);
+      const summary = summarySection.split('\n').filter(line => line.trim()).join(' ').substring(0, 500);
+      return summary || "Not provided";
     }
     
-    // Extract first few sentences if no summary section
-    const sentences = content.split('.').slice(0, 3);
-    return sentences.join('.').substring(0, 300) + '...';
+    return "Not provided";
   }
 
   private extractKeywords(content: string): string[] {
@@ -436,13 +441,13 @@ class LangGraphMultiAgentSystem {
   private extractLinkedIn(content: string): string {
     const linkedinPattern = /linkedin\.com\/in\/[\w-]+/i;
     const match = content.match(linkedinPattern);
-    return match ? `https://${match[0]}` : "";
+    return match ? `https://${match[0]}` : "Not provided";
   }
 
   private extractGitHub(content: string): string {
     const githubPattern = /github\.com\/[\w-]+/i;
     const match = content.match(githubPattern);
-    return match ? `https://${match[0]}` : "";
+    return match ? `https://${match[0]}` : "Not provided";
   }
 
   private extractSection(content: string, sectionNames: string[]): string {
