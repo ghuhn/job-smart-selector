@@ -144,6 +144,22 @@ const Results = () => {
     }
   };
 
+  const getAgentIcon = (agentName: string) => {
+    switch (agentName) {
+      case 'HR Agent': return Users;
+      case 'Technical Evaluator': return Code;
+      case 'Experience Analyzer': return TrendingUp;
+      case 'Cultural Fit Assessor': return User;
+      case 'Final Reviewer': return Brain;
+      default: return Brain;
+    }
+  };
+
+  const getAgentScoreFromFeedback = (agentFeedbacks: any[], agentName: string) => {
+    const feedback = agentFeedbacks.find(f => f.agent === agentName);
+    return feedback ? feedback.confidence : 0;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
@@ -376,6 +392,48 @@ const Results = () => {
                     <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{candidates[selectedCandidate].candidate.summary}</p>
                   </div>
                 )}
+
+                {/* Individual Agent Scores */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Individual Agent Scores</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {['HR Agent', 'Technical Evaluator', 'Experience Analyzer', 'Cultural Fit Assessor', 'Final Reviewer'].map((agentName) => {
+                      const score = getAgentScoreFromFeedback(candidates[selectedCandidate].agentFeedbacks, agentName);
+                      const IconComponent = getAgentIcon(agentName);
+                      return (
+                        <div key={agentName} className="text-center">
+                          <div className="relative inline-block">
+                            <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                              <path
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="#e5e7eb"
+                                strokeWidth="2"
+                              />
+                              <path
+                                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke={score >= 90 ? "#10b981" : score >= 80 ? "#3b82f6" : score >= 70 ? "#f59e0b" : "#ef4444"}
+                                strokeWidth="2"
+                                strokeDasharray={`${score}, 100`}
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <IconComponent className="w-6 h-6 text-gray-600" />
+                            </div>
+                          </div>
+                          <div className={`text-sm font-bold mt-2 ${getScoreColor(score)}`}>
+                            {score}%
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {agentName.replace(' Agent', '').replace(' Evaluator', '').replace(' Analyzer', '').replace(' Assessor', '').replace(' Reviewer', '')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {/* Skills */}
                 <div className="grid md:grid-cols-2 gap-6">
