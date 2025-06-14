@@ -102,4 +102,12 @@ export class AggressiveTextCleaner {
     
     return words;
   }
+
+  static extractSentences(text: string): string[] {
+    const cleaned = this.clean(text);
+    return cleaned.split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10 && s.length < 200)
+      .filter(s => /^[A-Za-z]/.test(s)); // Must start with letter
+  }
 }
