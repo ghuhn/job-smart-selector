@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, Mail, MapPin, Code } from "lucide-react";
 import type { CandidateAnalysis } from "@/types/candidates";
+import { NameUtils } from "@/utils/resume/nameUtils"; // Import for name cleaning
 
 interface CandidateListProps {
   candidates: CandidateAnalysis[];
@@ -62,7 +63,10 @@ const CandidateList = ({ candidates, selectedCandidate, onSelectCandidate, onDow
                           {analysis.rank}
                         </div>
                         <div>
-                          <h3 className="font-bold text-gray-900">{analysis.candidate.name}</h3>
+                          {/* Always clean candidate name before displaying to enforce removal of 'Resume.pdf', '.pdf', 'Resume' etc., even after retrieval */}
+                          <h3 className="font-bold text-gray-900">
+                            {NameUtils.cleanName(analysis.candidate.name)}
+                          </h3>
                           <p className="text-sm text-gray-600">{analysis.candidate.experienceYears} years experience</p>
                           <Badge className={`text-xs mt-1 ${getFitBadgeColor(analysis.overallFit)}`}>
                             {analysis.overallFit} Fit
