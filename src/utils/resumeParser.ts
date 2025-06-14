@@ -21,8 +21,10 @@ You are an expert resume parsing agent that understands all major resume formats
 1. NEVER use document filenames, headers, or footers as candidate names
 2. Look for actual human names in the content - typically at the top in larger font or bold
 3. Names should be 2-4 words maximum and contain only letters, spaces, apostrophes, or hyphens
-4. If you see patterns like "John_Doe_Resume.pdf" or "Resume_2024_Final" - these are NOT names
+4. If you see patterns like "John_Doe_Resume.pdf", "Resume_2024_Final", "resume.pdf" - these are NOT names
 5. Extract information semantically, not based on section headers
+6. Email addresses MUST follow xxx@xxx.xxx format - be very strict about this
+7. If no clear human name is found, use "Candidate" as the name
 
 🔍 RESUME FORMATS TO RECOGNIZE:
 - Chronological (most recent experience first)
@@ -33,11 +35,27 @@ You are an expert resume parsing agent that understands all major resume formats
 - ATS-optimized format
 - International formats (European CV, etc.)
 
+📧 EMAIL EXTRACTION RULES:
+- Must contain @ symbol
+- Must have valid domain with at least one dot
+- Must be a complete email address (no partial matches)
+- Examples of VALID emails: john.doe@gmail.com, candidate@company.co.uk
+- Examples of INVALID: @gmail.com, john.doe@, email
+
+🗣️ LANGUAGE DETECTION:
+Use this comprehensive list to detect languages mentioned in resumes:
+English, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Mandarin, Cantonese, Japanese, Korean, Arabic, Hindi, Bengali, Urdu, Telugu, Tamil, Marathi, Gujarati, Punjabi, Thai, Vietnamese, Indonesian, Malay, Tagalog, Dutch, Swedish, Norwegian, Danish, Finnish, Polish, Czech, Hungarian, Romanian, Bulgarian, Croatian, Serbian, Greek, Turkish, Hebrew, Persian, Farsi, Swahili, Amharic, Yoruba, Igbo, Hausa, Zulu, Afrikaans, Sinhala, Nepali, Burmese, Khmer, Lao, Mongolian, Kazakh, Uzbek, Kyrgyz, Tajik, Georgian, Armenian, Azerbaijani, Estonian, Latvian, Lithuanian, Slovenian, Slovak, Maltese, Irish, Welsh, Scottish Gaelic, Basque, Catalan, Galician, Albanian, Macedonian, Bosnian, Montenegrin, Icelandic, Luxembourgish, Romansh
+
+For each detected language, look for proficiency indicators like:
+- Native, Fluent, Advanced, Intermediate, Basic, Beginner
+- A1, A2, B1, B2, C1, C2 (CEFR levels)
+- Conversational, Professional, Business level
+
 📋 INFORMATION TO EXTRACT:
 
 **Personal Information:**
-- Full Name (actual person's name, not filename)
-- Email address
+- Full Name (actual person's name, NOT filename)
+- Email address (strict xxx@xxx.xxx validation)
 - Phone number (including international formats)
 - Location (city, state/country)
 - LinkedIn profile URL
@@ -60,7 +78,7 @@ You are an expert resume parsing agent that understands all major resume formats
 - Technical skills (programming languages, tools, frameworks)
 - Soft skills (leadership, communication, etc.)
 - Industry-specific skills
-- Language proficiencies
+- Categorize into technical vs soft skills
 
 **Additional Sections:**
 - Projects (personal/professional)
@@ -68,6 +86,7 @@ You are an expert resume parsing agent that understands all major resume formats
 - Awards and achievements
 - Publications
 - Volunteer work
+- Languages with proficiency levels
 
 🧠 PARSING INTELLIGENCE:
 - Handle typos and formatting inconsistencies
@@ -77,21 +96,22 @@ You are an expert resume parsing agent that understands all major resume formats
 - Identify technical skills vs soft skills automatically
 - Handle international phone number formats
 - Recognize common section synonyms (Experience/Work History, Skills/Competencies)
+- Use semantic understanding to avoid filename artifacts
 
 📝 OUTPUT FORMAT:
 Provide ONLY the extracted information in this exact format:
 
 **Name**
-[Actual person's full name - NOT filename]
+[Actual person's full name - NOT filename, NOT document title]
 
 **Email**
-[email@domain.com]
+[email@domain.com - must be valid format or "Not provided"]
 
 **Phone**
-[phone number]
+[phone number or "Not provided"]
 
 **Location**
-[City, State/Country]
+[City, State/Country or "Not provided"]
 
 **LinkedIn**
 [LinkedIn URL or "Not provided"]
@@ -121,7 +141,7 @@ Provide ONLY the extracted information in this exact format:
 [Comma-separated list of certifications and licenses]
 
 **Languages**
-[Comma-separated list of languages with proficiency if mentioned]
+[Language with proficiency level, Language with proficiency level]
 
 **Projects**
 - [Project Name]: [Brief description] ([Technologies used])
@@ -139,7 +159,7 @@ ${resumeText}
     private static cleanName(rawName: string): string {
         if (!rawName) return "Not provided";
         
-        // Remove common resume filename patterns
+        // Remove common resume filename patterns more aggressively
         let cleanedName = rawName
             .replace(/\.pdf$/i, '')
             .replace(/\.docx?$/i, '')
@@ -148,9 +168,17 @@ ${resumeText}
             .replace(/cv/gi, '')
             .replace(/_/g, ' ')
             .replace(/-/g, ' ')
-            .replace(/\d+/g, '') // Remove numbers
+            .replace(/\d+/g, '') // Remove all numbers
             .replace(/[^\w\s'-]/g, '') // Remove special characters except apostrophes and hyphens
             .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+        
+        // Additional cleaning for common filename patterns
+        cleanedName = cleanedName
+            .replace(/\b(final|updated|new|latest|version|v\d+)\b/gi, '')
+            .replace(/\b(doc|document)\b/gi, '')
+            .replace(/\b\d{4}\b/g, '') // Remove years
+            .replace(/\s+/g, ' ')
             .trim();
         
         // Capitalize each word properly
@@ -163,10 +191,80 @@ ${resumeText}
         // Validate it looks like a real name (2-4 words, reasonable length)
         const words = cleanedName.split(' ');
         if (words.length < 1 || words.length > 4 || cleanedName.length < 2 || cleanedName.length > 50) {
-            return "Not provided";
+            return "Candidate";
+        }
+        
+        // Check if it still contains common filename indicators
+        if (/\b(resume|cv|document|file)\b/i.test(cleanedName)) {
+            return "Candidate";
         }
         
         return cleanedName;
+    }
+
+    private static validateEmail(email: string): string {
+        if (!email || email === "Not provided") return "Not provided";
+        
+        // Strict email validation
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        
+        if (emailRegex.test(email.trim())) {
+            return email.trim();
+        }
+        
+        return "Not provided";
+    }
+
+    private static parseLanguages(languageText: string): string[] {
+        if (!languageText || languageText === "Not provided") return [];
+        
+        const commonLanguages = [
+            'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Russian', 'Chinese', 
+            'Mandarin', 'Cantonese', 'Japanese', 'Korean', 'Arabic', 'Hindi', 'Bengali', 'Urdu', 
+            'Telugu', 'Tamil', 'Marathi', 'Gujarati', 'Punjabi', 'Thai', 'Vietnamese', 'Indonesian', 
+            'Malay', 'Tagalog', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Finnish', 'Polish', 
+            'Czech', 'Hungarian', 'Romanian', 'Bulgarian', 'Croatian', 'Serbian', 'Greek', 'Turkish', 
+            'Hebrew', 'Persian', 'Farsi', 'Swahili', 'Amharic', 'Yoruba', 'Igbo', 'Hausa', 'Zulu', 
+            'Afrikaans', 'Sinhala', 'Nepali', 'Burmese', 'Khmer', 'Lao', 'Mongolian', 'Kazakh', 
+            'Uzbek', 'Kyrgyz', 'Tajik', 'Georgian', 'Armenian', 'Azerbaijani', 'Estonian', 'Latvian', 
+            'Lithuanian', 'Slovenian', 'Slovak', 'Maltese', 'Irish', 'Welsh', 'Scottish Gaelic', 
+            'Basque', 'Catalan', 'Galician', 'Albanian', 'Macedonian', 'Bosnian', 'Montenegrin', 
+            'Icelandic', 'Luxembourgish', 'Romansh'
+        ];
+        
+        const proficiencyLevels = [
+            'Native', 'Fluent', 'Advanced', 'Intermediate', 'Basic', 'Beginner', 'Conversational', 
+            'Professional', 'Business', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'
+        ];
+        
+        const languages: string[] = [];
+        const parts = languageText.split(',');
+        
+        for (const part of parts) {
+            const trimmedPart = part.trim();
+            
+            // Check if this part contains a language
+            for (const language of commonLanguages) {
+                if (new RegExp(`\\b${language}\\b`, 'i').test(trimmedPart)) {
+                    // Extract proficiency if present
+                    let proficiency = '';
+                    for (const level of proficiencyLevels) {
+                        if (new RegExp(`\\b${level}\\b`, 'i').test(trimmedPart)) {
+                            proficiency = ` (${level})`;
+                            break;
+                        }
+                    }
+                    
+                    const languageEntry = `${language}${proficiency}`;
+                    if (!languages.includes(languageEntry)) {
+                        languages.push(languageEntry);
+                    }
+                    break;
+                }
+            }
+        }
+        
+        return languages;
     }
 
     private static parseLlmOutput(llmOutput: string): Partial<Candidate> {
@@ -201,13 +299,13 @@ ${resumeText}
                     candidate.name = this.cleanName(content);
                     break;
                 case 'email':
-                    candidate.email = content.includes('@') ? content : "Not provided";
+                    candidate.email = this.validateEmail(content);
                     break;
                 case 'phone':
-                    candidate.phone = content;
+                    candidate.phone = content !== "Not provided" ? content : "Not provided";
                     break;
                 case 'location':
-                    candidate.location = content;
+                    candidate.location = content !== "Not provided" ? content : "Not provided";
                     break;
                 case 'linkedin':
                     candidate.linkedIn = content !== "Not provided" ? content : "Not provided";
@@ -261,7 +359,7 @@ ${resumeText}
                     break;
                 case 'languages':
                     if (candidate.languages) {
-                        candidate.languages = content.split(',').map(s => s.trim()).filter(Boolean);
+                        candidate.languages = this.parseLanguages(content);
                     }
                     break;
                 case 'projects':
