@@ -1,5 +1,5 @@
 
-import { ResumeParser } from './resumeParser';
+import { ResumeParser } from './resume/resumeParser';
 import type { Candidate, ExperienceEntry } from '@/types/candidates';
 
 function calculateExperienceYears(experience: ExperienceEntry[] | undefined): number {
@@ -27,7 +27,6 @@ function calculateExperienceYears(experience: ExperienceEntry[] | undefined): nu
     }
     return Math.round(totalMonths / 12);
 }
-
 
 export class SmartCandidateExtractor {
   static async extractCandidate(resume: any): Promise<Candidate> {
