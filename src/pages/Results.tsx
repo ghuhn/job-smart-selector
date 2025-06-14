@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Download, AlertTriangle, FileText } from "lucide-react";
+import { Download, AlertTriangle, FileText, Home } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { CandidateAnalysis, ExperienceEntry, EducationEntry } from "@/types/candidates";
 import ResultsHeader from "@/components/results/ResultsHeader";
@@ -162,6 +162,20 @@ const Results = () => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Clickable Title */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="p-0 h-auto text-left hover:bg-transparent"
+          >
+            <div className="flex items-center space-x-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
+              <Home className="h-6 w-6" />
+              <span>ResumeAI - Analysis Results</span>
+            </div>
+          </Button>
+        </div>
+
         <SummaryCards candidates={candidates} />
 
         {/* Download Actions */}

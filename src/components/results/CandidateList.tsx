@@ -1,7 +1,8 @@
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, Mail, MapPin, Code } from "lucide-react";
 import type { CandidateAnalysis } from "@/types/candidates";
 
@@ -31,70 +32,83 @@ const getFitBadgeColor = (fit: string) => {
 
 const CandidateList = ({ candidates, selectedCandidate, onSelectCandidate, onDownloadProfile }: CandidateListProps) => {
   return (
-    <div className="lg:col-span-1 space-y-4">
-      {candidates.map((analysis, index) => (
-        <Card
-          key={index}
-          className={`border-0 shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
-            selectedCandidate === index
-              ? 'bg-blue-50 ring-2 ring-blue-500'
-              : 'bg-white/60 backdrop-blur-sm hover:bg-white/80'
-          }`}
-          onClick={() => onSelectCandidate(index)}
-        >
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                  analysis.rank === 1 ? 'bg-yellow-500' :
-                  analysis.rank === 2 ? 'bg-gray-400' : 'bg-orange-600'
-                }`}>
-                  {analysis.rank}
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">{analysis.candidate.name}</h3>
-                  <p className="text-sm text-gray-600">{analysis.candidate.experienceYears} years experience</p>
-                  <Badge className={`text-xs mt-1 ${getFitBadgeColor(analysis.overallFit)}`}>
-                    {analysis.overallFit} Fit
-                  </Badge>
-                </div>
-              </div>
-              <div className={`text-2xl font-bold ${getScoreColor(analysis.scores.overall)}`}>
-                {analysis.scores.overall}%
-              </div>
-            </div>
+    <div className="lg:col-span-1">
+      <Card className="border-0 shadow-lg bg-white/60 backdrop-blur-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold text-gray-900">
+            Top {candidates.length} Candidates
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ScrollArea className="h-[800px] px-6 pb-6">
+            <div className="space-y-4">
+              {candidates.map((analysis, index) => (
+                <Card
+                  key={index}
+                  className={`border-0 shadow-lg cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                    selectedCandidate === index
+                      ? 'bg-blue-50 ring-2 ring-blue-500'
+                      : 'bg-white/60 backdrop-blur-sm hover:bg-white/80'
+                  }`}
+                  onClick={() => onSelectCandidate(index)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                          analysis.rank === 1 ? 'bg-yellow-500' :
+                          analysis.rank === 2 ? 'bg-gray-400' : 'bg-orange-600'
+                        }`}>
+                          {analysis.rank}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">{analysis.candidate.name}</h3>
+                          <p className="text-sm text-gray-600">{analysis.candidate.experienceYears} years experience</p>
+                          <Badge className={`text-xs mt-1 ${getFitBadgeColor(analysis.overallFit)}`}>
+                            {analysis.overallFit} Fit
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className={`text-2xl font-bold ${getScoreColor(analysis.scores.overall)}`}>
+                        {analysis.scores.overall}%
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
-                <Mail className="h-4 w-4 mr-2" />
-                {analysis.candidate.email}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2" />
-                {analysis.candidate.location}
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <Code className="h-4 w-4 mr-2" />
-                {analysis.candidate.technicalSkills.slice(0, 3).join(', ')}
-                {analysis.candidate.technicalSkills.length > 3 && '...'}
-              </div>
-            </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Mail className="h-4 w-4 mr-2" />
+                        {analysis.candidate.email}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {analysis.candidate.location}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Code className="h-4 w-4 mr-2" />
+                        {analysis.candidate.technicalSkills.slice(0, 3).join(', ')}
+                        {analysis.candidate.technicalSkills.length > 3 && '...'}
+                      </div>
+                    </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full mt-4"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDownloadProfile(index);
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Profile
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-4"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDownloadProfile(index);
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Profile
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   );
 };
