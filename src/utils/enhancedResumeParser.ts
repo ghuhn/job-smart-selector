@@ -1,13 +1,5 @@
 
-import { cleanText } from './parsers/common';
-import { extractName } from './parsers/nameExtractor';
-import { extractEmail } from './parsers/emailExtractor';
-import { extractPhone } from './parsers/phoneExtractor';
-import { extractLocation } from './parsers/locationExtractor';
-import { extractSkills } from './parsers/skillsExtractor';
-import { extractExperience } from './parsers/experienceExtractor';
-import { extractEducation } from './parsers/educationExtractor';
-import { extractLanguages } from './parsers/languageExtractor';
+import { SmartExtractor } from './smartExtractor';
 
 interface ExtractedCandidate {
   name: string;
@@ -32,23 +24,43 @@ interface ExtractedCandidate {
   github: string;
 }
 
+function customCleanText(text: string): string {
+    let cleaned = text;
+
+    // Remove PDF specific artifacts that can interfere with parsing
+    cleaned = cleaned.replace(/%PDF-[\d.]+/g, '');
+    cleaned = cleaned.replace(/%%EOF/g, '');
+    cleaned = cleaned.replace(/\d+\s+\d+\s+obj.*?endobj/gs, '');
+    cleaned = cleaned.replace(/<</g, '').replace(/>>/g, '');
+    cleaned = cleaned.replace(/\/([A-Z][a-zA-Z]+)/g, '');
+
+    // General cleaning
+    cleaned = cleaned.replace(/[^\w\s@.+-]/g, ' ');
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+    return cleaned;
+}
+
 export class EnhancedResumeParser {
   static parseResume(resume: any): ExtractedCandidate {
-    console.log('=== ENHANCED RESUME PARSING (Refactored) ===');
+    console.log('=== NEW RESUME PARSING LOGIC INITIATED ===');
     const content = resume.content || '';
-    const cleanedText = cleanText(content);
+    const cleanedText = customCleanText(content);
     
     console.log('Processing resume:', resume.name);
-    console.log('Content length:', content.length);
+    
+    const lines = cleanedText.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+    const sentences = cleanedText.split(/[.?!]/g).map(s => s.trim()).filter(Boolean);
+    const words = cleanedText.toLowerCase().match(/\b(\w+)\b/g) || [];
 
-    const name = extractName(cleanedText, resume.name);
-    const email = extractEmail(cleanedText);
-    const phone = extractPhone(cleanedText);
-    const location = extractLocation(cleanedText);
-    const skills = extractSkills(cleanedText);
-    const experience = extractExperience(cleanedText);
-    const education = extractEducation(cleanedText);
-    const languages = extractLanguages(cleanedText);
+    const name = SmartExtractor.extractName(words, sentences, lines, resume.name);
+    const email = SmartExtractor.extractEmail(words, sentences, lines);
+    const phone = SmartExtractor.extractPhone(words, sentences, lines);
+    const location = SmartExtractor.extractLocation(words, sentences, lines);
+    const skills = SmartExtractor.extractSkills(words, sentences, lines);
+    const experience = SmartExtractor.extractExperience(words, sentences, lines);
+    const education = SmartExtractor.extractEducation(words, sentences, lines);
+    const languages = SmartExtractor.extractLanguages(words, sentences, lines);
 
     // Categorize skills
     const technicalKeywords = ['javascript', 'python', 'java', 'react', 'angular', 'vue', 'node', 'html', 'css', 'sql', 'aws', 'docker', 'git'];
@@ -85,10 +97,11 @@ export class EnhancedResumeParser {
       github: "Not provided"
     };
 
-    console.log('=== REFACTORED EXTRACTION RESULTS ===');
+    console.log('=== NEW EXTRACTION RESULTS ===');
     console.log('Name:', name);
     console.log('Email:', email);
     console.log('Phone:', phone);
+    console.log('Location:', location);
     console.log('Skills:', skills.length);
     console.log('Experience years:', experience.years);
 

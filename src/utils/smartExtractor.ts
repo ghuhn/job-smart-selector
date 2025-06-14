@@ -1,4 +1,3 @@
-
 import { AggressiveTextCleaner } from './textCleaner';
 
 export class SmartExtractor {
@@ -95,22 +94,23 @@ export class SmartExtractor {
   }
 
   static extractPhone(words: string[], sentences: string[], lines: string[]): string {
-    console.log('=== ENHANCED PHONE EXTRACTION ===');
+    console.log('=== ENHANCED PHONE EXTRACTION (Indian Focus) ===');
     
     // Strategy 1: Look for phone patterns in lines
     const phonePatterns = [
-      /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/,
-      /\+?1?[-.\s]?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/,
-      /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/,
-      /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/
+      /\+91[ -]?\d{10}/,
+      /\+91[ -]?\d{5}[ -]?\d{5}/,
+      /(?<!\d)\d{10}(?!\d)/,
+      /\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/,
     ];
     
     for (const line of lines) {
       for (const pattern of phonePatterns) {
         const match = line.match(pattern);
         if (match) {
+          if (/\d{4}\s*-\s*\d{4}/.test(match[0])) continue; // Avoid dates
           console.log('Found phone in line:', match[0]);
-          return match[0];
+          return match[0].replace(/[^\d+]/g, '');
         }
       }
     }
@@ -124,8 +124,9 @@ export class SmartExtractor {
           for (const pattern of phonePatterns) {
             const match = afterLabel.match(pattern);
             if (match) {
+              if (/\d{4}\s*-\s*\d{4}/.test(match[0])) continue; // Avoid dates
               console.log('Found phone after label:', match[0]);
-              return match[0];
+              return match[0].replace(/[^\d+]/g, '');
             }
           }
         }
@@ -136,44 +137,43 @@ export class SmartExtractor {
   }
 
   static extractLocation(words: string[], sentences: string[], lines: string[]): string {
-    console.log('=== ENHANCED LOCATION EXTRACTION ===');
+    console.log('=== ENHANCED LOCATION EXTRACTION (Indian Focus) ===');
     
-    const usStates = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'];
-    const stateAbbrevs = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
-    const majorCities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose', 'Austin', 'Jacksonville', 'Fort Worth', 'Columbus', 'Charlotte', 'San Francisco', 'Indianapolis', 'Seattle', 'Denver', 'Boston', 'Nashville', 'Baltimore', 'Oklahoma City', 'Portland', 'Las Vegas', 'Milwaukee', 'Atlanta', 'Miami', 'Tampa', 'Orlando'];
+    const majorIndianCities = ['Mumbai', 'Delhi', 'Bangalore', 'Bengaluru', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Surat', 'Pune', 'Jaipur', 'Noida', 'Gurgaon', 'Gurugram'];
     
-    // Strategy 1: Look in lines for "City, State" pattern
-    for (const line of lines) {
-      const locationMatch = line.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2}|[A-Z][a-z]+)/);
-      if (locationMatch) {
-        console.log('Found location pattern:', locationMatch[0]);
-        return locationMatch[0];
-      }
-    }
-    
-    // Strategy 2: Look for states in words
-    for (const word of words) {
-      const state = usStates.find(s => s.toLowerCase() === word.toLowerCase());
-      if (state) {
-        console.log('Found state:', state);
-        return state;
+    // Strategy 1: Look for City, India or City, State in top lines
+    for (const line of lines.slice(0, 15)) {
+      const cityIndiaMatch = line.match(/([A-Z][a-z]+(?:(?:\s|-)[A-Z][a-z]+)*),\s*(India|IN)\b/i);
+      if (cityIndiaMatch) {
+        console.log('Found location pattern (City, India):', cityIndiaMatch[1]);
+        return cityIndiaMatch[1];
       }
       
-      const abbrev = stateAbbrevs.find(a => a.toLowerCase() === word.toLowerCase());
-      if (abbrev) {
-        console.log('Found state abbreviation:', abbrev);
-        return abbrev;
+      const cityStateMatch = line.match(/([A-Z][a-z]+(?:(?:\s|-)[A-Z][a-z]+)*),\s*([A-Z][a-z]+)/);
+      if(cityStateMatch){
+          console.log('Found location pattern (City, State):', cityStateMatch[0]);
+          return cityStateMatch[0];
       }
     }
     
-    // Strategy 3: Look for cities
-    for (const city of majorCities) {
-      const cityWords = city.toLowerCase().split(' ');
-      if (cityWords.every(cw => words.some(w => w.toLowerCase() === cw))) {
-        console.log('Found city:', city);
-        return city;
-      }
+    // Strategy 2: Look for major Indian cities in top lines
+    for (const line of lines.slice(0, 15)) {
+        for (const city of majorIndianCities) {
+            const cityRegex = new RegExp(`\\b${city}\\b`, 'i');
+            if (cityRegex.test(line)) {
+                console.log('Found Indian city:', city);
+                return city;
+            }
+        }
     }
+
+    // Strategy 3: Look for address-like lines near top
+     const addressPattern = /\b\d+\s+[A-Z][a-z]+\s+(St|Ave|Rd|Dr|Blvd|Lane|Way|Nagar|Colony)/i;
+     for (const line of lines.slice(0, 15)) {
+       if (addressPattern.test(line)) {
+         return line.length > 50 ? line.substring(0, 50) + "..." : line;
+       }
+     }
     
     return "Not provided";
   }
