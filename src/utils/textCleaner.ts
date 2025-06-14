@@ -5,7 +5,7 @@ export class AggressiveTextCleaner {
     
     console.log('=== AGGRESSIVE TEXT CLEANING ===');
     console.log('Input length:', text.length);
-    console.log('Raw sample:', text.substring(0, 200));
+    console.log('Raw sample:', text.substring(0, 300));
     
     // Step 1: Remove all PDF objects, streams, and references
     let cleaned = text
@@ -85,7 +85,7 @@ export class AggressiveTextCleaner {
       .trim();
     
     console.log('Cleaned length:', cleaned.length);
-    console.log('Cleaned sample:', cleaned.substring(0, 200));
+    console.log('Cleaned sample:', cleaned.substring(0, 300));
     
     return cleaned;
   }
@@ -109,5 +109,14 @@ export class AggressiveTextCleaner {
       .map(s => s.trim())
       .filter(s => s.length > 10 && s.length < 200)
       .filter(s => /^[A-Za-z]/.test(s)); // Must start with letter
+  }
+
+  static extractLines(text: string): string[] {
+    const cleaned = this.clean(text);
+    return cleaned.split(/\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 3)
+      .filter(line => line.length < 100)
+      .filter(line => /[A-Za-z]/.test(line)); // Must contain letters
   }
 }

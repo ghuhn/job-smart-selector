@@ -5,33 +5,38 @@ import { Candidate } from './multiAgentSystem';
 
 export class SmartCandidateExtractor {
   static async extractCandidate(resume: any): Promise<Candidate> {
-    console.log('=== SMART CANDIDATE EXTRACTION ===');
+    console.log('=== ENHANCED CANDIDATE EXTRACTION ===');
     console.log('Resume file:', resume.name);
     
     const content = resume.content || '';
-    console.log('Raw content sample:', content.substring(0, 300));
+    console.log('Raw content length:', content.length);
+    console.log('Raw content sample:', content.substring(0, 500));
     
     const cleanedText = AggressiveTextCleaner.clean(content);
     const words = AggressiveTextCleaner.extractReadableWords(content);
     const sentences = AggressiveTextCleaner.extractSentences(content);
+    const lines = AggressiveTextCleaner.extractLines(content);
     
+    console.log('Cleaned text length:', cleanedText.length);
     console.log('Extracted words count:', words.length);
-    console.log('Sample words:', words.slice(0, 30));
+    console.log('Sample words:', words.slice(0, 50));
     console.log('Extracted sentences count:', sentences.length);
-    console.log('Sample sentences:', sentences.slice(0, 3));
+    console.log('Sample sentences:', sentences.slice(0, 5));
+    console.log('Extracted lines count:', lines.length);
+    console.log('Sample lines:', lines.slice(0, 10));
     
-    // Extract basic information
-    const name = SmartExtractor.extractName(words, sentences, resume.name);
-    const email = SmartExtractor.extractEmail(words, sentences);
-    const phone = SmartExtractor.extractPhone(words, sentences);
-    const location = SmartExtractor.extractLocation(words, sentences);
-    const skills = SmartExtractor.extractSkills(words, sentences);
-    const experience = SmartExtractor.extractExperience(words, sentences);
-    const education = SmartExtractor.extractEducation(words, sentences);
-    const languages = SmartExtractor.extractLanguages(words, sentences);
+    // Extract basic information using enhanced methods
+    const name = SmartExtractor.extractName(words, sentences, lines, resume.name);
+    const email = SmartExtractor.extractEmail(words, sentences, lines);
+    const phone = SmartExtractor.extractPhone(words, sentences, lines);
+    const location = SmartExtractor.extractLocation(words, sentences, lines);
+    const skills = SmartExtractor.extractSkills(words, sentences, lines);
+    const experience = SmartExtractor.extractExperience(words, sentences, lines);
+    const education = SmartExtractor.extractEducation(words, sentences, lines);
+    const languages = SmartExtractor.extractLanguages(words, sentences, lines);
     
     // Separate technical and soft skills
-    const technicalKeywords = ['JavaScript', 'Python', 'Java', 'React', 'Node', 'SQL', 'HTML', 'CSS', 'AWS', 'Docker', 'Git'];
+    const technicalKeywords = ['JavaScript', 'Python', 'Java', 'React', 'Node', 'SQL', 'HTML', 'CSS', 'AWS', 'Docker', 'Git', 'Angular', 'Vue'];
     const softKeywords = ['Leadership', 'Communication', 'Management', 'Teamwork', 'Problem', 'Analysis'];
     
     const technicalSkills = skills.filter(skill => 
@@ -41,6 +46,17 @@ export class SmartCandidateExtractor {
     const softSkills = skills.filter(skill => 
       softKeywords.some(soft => skill.toLowerCase().includes(soft.toLowerCase()))
     );
+    
+    console.log('=== EXTRACTION RESULTS ===');
+    console.log('Name:', name);
+    console.log('Email:', email);
+    console.log('Phone:', phone);
+    console.log('Location:', location);
+    console.log('Experience:', experience);
+    console.log('Education:', education);
+    console.log('Languages:', languages);
+    console.log('Technical Skills:', technicalSkills);
+    console.log('Soft Skills:', softSkills);
     
     const candidate: Candidate = {
       name,
@@ -54,70 +70,81 @@ export class SmartCandidateExtractor {
       experienceYears: experience.years,
       education: education.text,
       educationLevel: education.level,
-      certifications: this.extractCertifications(words, sentences),
+      certifications: this.extractCertifications(words, lines),
       languages,
-      previousRoles: this.extractPreviousRoles(words, sentences),
-      projects: this.extractProjects(words, sentences, technicalSkills),
-      achievements: this.extractAchievements(words, sentences),
-      summary: this.extractSummary(sentences),
+      previousRoles: this.extractPreviousRoles(lines, technicalSkills),
+      projects: this.extractProjects(lines, technicalSkills),
+      achievements: this.extractAchievements(lines),
+      summary: this.extractSummary(sentences, lines),
       keywords: [...technicalSkills, ...softSkills].slice(0, 10),
-      linkedIn: this.extractLinkedIn(words, sentences),
-      github: this.extractGitHub(words, sentences)
+      linkedIn: this.extractLinkedIn(words, lines),
+      github: this.extractGitHub(words, lines)
     };
     
-    console.log('=== EXTRACTION COMPLETE ===');
-    console.log('Final candidate:', candidate);
+    console.log('=== FINAL CANDIDATE ===');
+    console.log(candidate);
     
     return candidate;
   }
 
-  private static extractCertifications(words: string[], sentences: string[]): string[] {
+  private static extractCertifications(words: string[], lines: string[]): string[] {
     const certKeywords = ['AWS', 'Microsoft', 'Google', 'PMP', 'Scrum', 'CISSP', 'CompTIA', 'Certified', 'Certification'];
-    const certs = [];
+    const certs = new Set<string>();
     
-    for (const word of words) {
-      for (const cert of certKeywords) {
-        if (word.toLowerCase().includes(cert.toLowerCase())) {
-          certs.push(cert);
-          break;
+    // Look in lines for certification sections
+    for (const line of lines) {
+      if (line.toLowerCase().includes('certif') || line.toLowerCase().includes('license')) {
+        for (const cert of certKeywords) {
+          if (line.toLowerCase().includes(cert.toLowerCase())) {
+            certs.add(cert);
+          }
         }
       }
     }
     
-    return [...new Set(certs)];
+    // Look in words
+    for (const word of words) {
+      for (const cert of certKeywords) {
+        if (word.toLowerCase().includes(cert.toLowerCase())) {
+          certs.add(cert);
+        }
+      }
+    }
+    
+    return Array.from(certs);
   }
 
-  private static extractPreviousRoles(words: string[], sentences: string[]): Array<{title: string, company: string, duration: string, responsibilities: string[]}> {
+  private static extractPreviousRoles(lines: string[], techSkills: string[]): Array<{title: string, company: string, duration: string, responsibilities: string[]}> {
     const jobTitles = ['Engineer', 'Developer', 'Manager', 'Analyst', 'Designer', 'Consultant', 'Director', 'Specialist', 'Lead', 'Senior', 'Junior'];
     const roles = [];
     
-    for (const sentence of sentences.slice(0, 10)) {
+    for (const line of lines.slice(0, 20)) {
       for (const title of jobTitles) {
-        if (sentence.toLowerCase().includes(title.toLowerCase())) {
+        if (line.toLowerCase().includes(title.toLowerCase())) {
           roles.push({
-            title: `${title} (from resume)`,
-            company: "Company details in resume",
-            duration: "Duration mentioned in resume",
-            responsibilities: ["Responsibilities listed in resume"]
+            title: line.length > 50 ? line.substring(0, 50) + "..." : line,
+            company: "Company mentioned in resume",
+            duration: "Duration in resume",
+            responsibilities: [`Key responsibilities mentioned in resume`]
           });
           break;
         }
       }
-      if (roles.length >= 2) break;
+      if (roles.length >= 3) break;
     }
     
     return roles;
   }
 
-  private static extractProjects(words: string[], sentences: string[], techSkills: string[]): Array<{name: string, description: string, technologies: string[]}> {
+  private static extractProjects(lines: string[], techSkills: string[]): Array<{name: string, description: string, technologies: string[]}> {
     const projectIndicators = ['project', 'built', 'developed', 'created', 'implemented'];
     const projects = [];
     
-    for (const sentence of sentences.slice(0, 10)) {
-      if (projectIndicators.some(indicator => sentence.toLowerCase().includes(indicator))) {
+    for (const line of lines.slice(0, 15)) {
+      if (projectIndicators.some(indicator => line.toLowerCase().includes(indicator))) {
         projects.push({
-          name: "Project mentioned in resume",
-          description: sentence.substring(0, 100) + "...",
+          name: "Project from resume",
+          description: line.length > 100 ? line.substring(0, 100) + "..." : line,
           technologies: techSkills.slice(0, 3)
         });
         break;
@@ -127,60 +154,73 @@ export class SmartCandidateExtractor {
     return projects;
   }
 
-  private static extractAchievements(words: string[], sentences: string[]): string[] {
-    const achievementWords = ['achieved', 'accomplished', 'award', 'recognition', 'improved', 'increased', 'reduced'];
+  private static extractAchievements(lines: string[]): string[] {
+    const achievementWords = ['achieved', 'accomplished', 'award', 'recognition', 'improved', 'increased', 'reduced', 'led'];
     const achievements = [];
     
-    for (const sentence of sentences.slice(0, 10)) {
-      if (achievementWords.some(word => sentence.toLowerCase().includes(word))) {
-        achievements.push(sentence.substring(0, 80) + "...");
-        if (achievements.length >= 2) break;
+    for (const line of lines.slice(0, 15)) {
+      if (achievementWords.some(word => line.toLowerCase().includes(word))) {
+        achievements.push(line.length > 80 ? line.substring(0, 80) + "..." : line);
+        if (achievements.length >= 3) break;
       }
     }
     
     return achievements;
   }
 
-  private static extractSummary(sentences: string[]): string {
-    const firstMeaningfulSentence = sentences.find(s => 
-      s.length > 20 && 
-      !s.toLowerCase().includes('resume') && 
-      !s.toLowerCase().includes('cv')
-    );
-    
-    return firstMeaningfulSentence ? 
-      firstMeaningfulSentence.substring(0, 150) + "..." : 
-      "Professional summary available in resume";
-  }
-
-  private static extractLinkedIn(words: string[], sentences: string[]): string {
-    for (const word of words) {
-      if (word.toLowerCase().includes('linkedin')) {
-        return `LinkedIn profile mentioned: ${word}`;
+  private static extractSummary(sentences: string[], lines: string[]): string {
+    // Look for summary/objective sections
+    for (const line of lines.slice(0, 10)) {
+      if (line.toLowerCase().includes('summary') || line.toLowerCase().includes('objective') || line.toLowerCase().includes('profile')) {
+        const nextLines = lines.slice(lines.indexOf(line) + 1, lines.indexOf(line) + 4);
+        const summary = nextLines.join(' ').trim();
+        if (summary.length > 20) {
+          return summary.length > 150 ? summary.substring(0, 150) + "..." : summary;
+        }
       }
     }
     
-    for (const sentence of sentences) {
-      if (sentence.toLowerCase().includes('linkedin')) {
-        const match = sentence.match(/linkedin\.com\/in\/[\w-]+/i);
+    // Fallback to first meaningful sentence
+    const firstMeaningfulSentence = sentences.find(s => 
+      s.length > 30 && 
+      !s.toLowerCase().includes('resume') && 
+      !s.toLowerCase().includes('cv') &&
+      !s.toLowerCase().includes('page')
+    );
+    
+    return firstMeaningfulSentence ? 
+      (firstMeaningfulSentence.length > 150 ? firstMeaningfulSentence.substring(0, 150) + "..." : firstMeaningfulSentence) : 
+      "Professional summary available in resume";
+  }
+
+  private static extractLinkedIn(words: string[], lines: string[]): string {
+    for (const line of lines) {
+      if (line.toLowerCase().includes('linkedin')) {
+        const match = line.match(/linkedin\.com\/in\/[\w-]+/i);
         if (match) return match[0];
+      }
+    }
+    
+    for (const word of words) {
+      if (word.toLowerCase().includes('linkedin')) {
+        return word;
       }
     }
     
     return "Not provided";
   }
 
-  private static extractGitHub(words: string[], sentences: string[]): string {
-    for (const word of words) {
-      if (word.toLowerCase().includes('github')) {
-        return `GitHub profile mentioned: ${word}`;
+  private static extractGitHub(words: string[], lines: string[]): string {
+    for (const line of lines) {
+      if (line.toLowerCase().includes('github')) {
+        const match = line.match(/github\.com\/[\w-]+/i);
+        if (match) return match[0];
       }
     }
     
-    for (const sentence of sentences) {
-      if (sentence.toLowerCase().includes('github')) {
-        const match = sentence.match(/github\.com\/[\w-]+/i);
-        if (match) return match[0];
+    for (const word of words) {
+      if (word.toLowerCase().includes('github')) {
+        return word;
       }
     }
     
