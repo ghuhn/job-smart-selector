@@ -1,16 +1,16 @@
 
-import { Candidate, EducationEntry, ExperienceEntry } from './multiAgentSystem';
+import { Candidate } from './multiAgentSystem';
 // NOTE: I am assuming 'geminiApi.ts' exports a function 'runGemini' that takes a prompt string
 // and returns the LLM's response as a string. If the function has a different name or signature,
 // this will need to be adjusted.
-import { runGemini } from './geminiApi';
+import { geminiAPI } from './geminiApi';
 
 export class ResumeParser {
     static async parse(resumeContent: string): Promise<Partial<Candidate>> {
         const prompt = this.buildPrompt(resumeContent);
         
         console.log("--- Sending prompt to LLM for resume parsing ---");
-        const llmOutput = await runGemini(prompt);
+        const llmOutput = await geminiAPI.generateContent(prompt);
         console.log("--- Received LLM response ---", llmOutput);
         
         return this.parseLlmOutput(llmOutput);

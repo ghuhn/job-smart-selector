@@ -1,4 +1,3 @@
-
 import { ResumeParser } from './resumeParser';
 import { Candidate, ExperienceEntry } from './multiAgentSystem';
 
@@ -48,7 +47,6 @@ export class SmartCandidateExtractor {
       technicalSkills: [],
       softSkills: [],
       experience: [],
-      experienceYears: 0,
       education: [],
       educationLevel: "Not provided",
       certifications: [],
