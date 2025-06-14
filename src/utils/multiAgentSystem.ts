@@ -1,5 +1,18 @@
 import { SmartCandidateExtractor } from './candidateExtractor';
 
+export interface EducationEntry {
+  degree: string;
+  institution: string;
+  years: string;
+}
+
+export interface ExperienceEntry {
+  company: string;
+  role: string;
+  duration: string;
+  description: string;
+}
+
 interface Candidate {
   name: string;
   email: string;
@@ -8,13 +21,12 @@ interface Candidate {
   skills: string[];
   technicalSkills: string[];
   softSkills: string[];
-  experience: string;
+  experience: ExperienceEntry[];
   experienceYears: number;
-  education: string;
+  education: EducationEntry[];
   educationLevel: string;
   certifications: string[];
   languages: string[];
-  previousRoles: Array<{title: string, company: string, duration: string, responsibilities: string[]}>;
   projects: Array<{name: string, description: string, technologies: string[]}>;
   achievements: string[];
   summary: string;
@@ -110,7 +122,7 @@ class LangGraphMultiAgentSystem {
     const baseScore = 70;
     const skillBonus = Math.min(candidate.technicalSkills.length * 3, 25);
     const experienceBonus = Math.min(candidate.experienceYears * 2, 20);
-    const educationBonus = candidate.educationLevel !== "Not provided" ? 15 : 0;
+    const educationBonus = candidate.education.length > 0 ? 15 : 0;
     const languageBonus = candidate.languages.length > 1 ? 5 : 0;
 
     const scores: Scores = {
@@ -137,7 +149,7 @@ class LangGraphMultiAgentSystem {
     const strengths = [];
     if (candidate.technicalSkills.length > 3) strengths.push("Strong technical skill set");
     if (candidate.experienceYears > 3) strengths.push("Experienced professional");
-    if (candidate.educationLevel !== "Not provided") strengths.push("Solid educational background");
+    if (candidate.education.length > 0) strengths.push("Solid educational background");
     if (candidate.languages.length > 1) strengths.push("Multilingual capabilities");
     if (candidate.certifications.length > 0) strengths.push("Professional certifications");
 
@@ -145,7 +157,7 @@ class LangGraphMultiAgentSystem {
     if (candidate.technicalSkills.length < 2) redFlags.push("Limited technical skills listed");
     if (candidate.experienceYears === 0) redFlags.push("No clear work experience mentioned");  
     if (candidate.email === "Not provided") redFlags.push("Contact information incomplete");
-    if (candidate.education === "Not provided") redFlags.push("Education background unclear");
+    if (candidate.education.length === 0) redFlags.push("Education background unclear");
 
     const recommendation = scores.overall >= 85 ? 
       "Highly recommended candidate - proceed to final interview" :
@@ -155,10 +167,14 @@ class LangGraphMultiAgentSystem {
       "Potential candidate - additional screening recommended" :
       "Below threshold - consider for entry-level roles only";
 
+    const experienceSummary = candidate.experience.length > 0 
+      ? `${candidate.experience[0].role} at ${candidate.experience[0].company}`
+      : "No experience listed";
+
     const agentFeedbacks: AgentFeedback[] = [
       {
         agent: "HR Agent",
-        analysis: `Initial screening of ${candidate.name}. Contact: ${candidate.email}, ${candidate.phone}. Location: ${candidate.location}. Experience: ${candidate.experience}. Languages: ${candidate.languages.join(', ')}.`,
+        analysis: `Initial screening of ${candidate.name}. Contact: ${candidate.email}, ${candidate.phone}. Location: ${candidate.location}. Experience: ${experienceSummary}. Languages: ${candidate.languages.join(', ')}.`,
         recommendations: candidate.email !== "Not provided" ? ["Verify contact information", "Schedule initial phone screening"] : ["Obtain complete contact details"],
         concerns: candidate.email === "Not provided" ? ["Missing contact details"] : [],
         strengths: ["Professional presentation", "Available for contact"],
@@ -174,7 +190,7 @@ class LangGraphMultiAgentSystem {
       },
       {
         agent: "Experience Analyzer",
-        analysis: `Career analysis shows ${candidate.experienceYears} years of professional experience. Previous roles: ${candidate.previousRoles.length} positions identified. Career progression appears ${candidate.experienceYears > 5 ? 'strong' : 'developing'}.`,
+        analysis: `Career analysis shows ${candidate.experienceYears} years of professional experience. Previous roles: ${candidate.experience.length} positions identified. Career progression appears ${candidate.experienceYears > 5 ? 'strong' : 'developing'}.`,
         recommendations: candidate.experienceYears > 0 ? ["Deep dive into recent projects", "Reference check with previous employers"] : ["Entry-level assessment required"],
         concerns: candidate.experienceYears < 2 ? ["Limited professional experience"] : [],
         strengths: ["Relevant industry experience", "Professional growth trajectory"],
@@ -201,7 +217,7 @@ class LangGraphMultiAgentSystem {
     const detailedAnalysis: DetailedAnalysis = {
       skillGaps: candidate.technicalSkills.length < 5 ? ["Could benefit from additional technical training"] : [],
       experienceMatch: candidate.experienceYears >= 3 ? "Strong experience match for role requirements" : "Experience level adequate but could be strengthened",
-      educationFit: candidate.educationLevel !== "Not provided" ? "Education requirements satisfied" : "Education background needs clarification",
+      educationFit: candidate.education.length > 0 ? "Education requirements satisfied" : "Education background needs clarification",
       projectRelevance: candidate.projects.length > 0 ? "Relevant project experience demonstrated" : "Project portfolio needs development",
       growthPotential: scores.overall >= 80 ? "High growth potential with strong foundation" : scores.overall >= 70 ? "Good growth potential with proper guidance" : "Moderate growth potential, may need additional support"
     };
