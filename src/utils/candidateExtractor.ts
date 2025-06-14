@@ -9,18 +9,6 @@ export class SmartCandidateExtractor {
     // Use the new parser
     const extractedData = ResumeParser.parse(resume.content || '', resume.name);
     
-    // Combine skills
-    const allSkills = extractedData.skills || [];
-    const technicalKeywords = ['javascript', 'python', 'java', 'react', 'angular', 'vue', 'node', 'html', 'css', 'sql', 'aws', 'docker', 'git', 'c++', 'c#', 'php', 'ruby', 'typescript', 'kubernetes'];
-    const softKeywords = ['leadership', 'communication', 'management', 'teamwork', 'problem-solving', 'analysis', 'project management'];
-    
-    const technicalSkills = allSkills.filter(skill => 
-      technicalKeywords.some(tech => skill.toLowerCase().includes(tech))
-    );
-    const softSkills = allSkills.filter(skill => 
-      softKeywords.some(soft => skill.toLowerCase().includes(soft))
-    );
-
     // Convert to the expected Candidate interface, filling defaults
     const candidate: Candidate = {
       name: "Unknown",
@@ -43,8 +31,6 @@ export class SmartCandidateExtractor {
       linkedIn: "Not provided",
       github: "Not provided",
       ...extractedData,
-      technicalSkills,
-      softSkills,
     };
     
     if (candidate.education.length > 0) {

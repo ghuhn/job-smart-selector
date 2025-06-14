@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +52,7 @@ const CandidateList = ({ candidates, selectedCandidate, onSelectCandidate, onDow
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">{analysis.candidate.name}</h3>
-                  <p className="text-sm text-gray-600">{analysis.candidate.experience} experience</p>
+                  <p className="text-sm text-gray-600">{analysis.candidate.experienceYears} years experience</p>
                   <Badge className={`text-xs mt-1 ${getFitBadgeColor(analysis.overallFit)}`}>
                     {analysis.overallFit} Fit
                   </Badge>

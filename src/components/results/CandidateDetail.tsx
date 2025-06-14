@@ -70,8 +70,8 @@ const CandidateDetail = ({ analysis }: CandidateDetailProps) => {
               </div>
             </div>
             <div className="space-y-2">
-              <p><strong>Experience:</strong> {analysis.candidate.experience}</p>
-              <p><strong>Education:</strong> {analysis.candidate.education}</p>
+              <p><strong>Experience:</strong> {analysis.candidate.experienceYears} years</p>
+              <p><strong>Education:</strong> {analysis.candidate.educationLevel}</p>
               <p><strong>Languages:</strong> {analysis.candidate.languages.join(', ')}</p>
             </div>
           </div>
