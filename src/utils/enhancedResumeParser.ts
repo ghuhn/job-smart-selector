@@ -1,3 +1,14 @@
+
+import { cleanText } from './parsers/common';
+import { extractName } from './parsers/nameExtractor';
+import { extractEmail } from './parsers/emailExtractor';
+import { extractPhone } from './parsers/phoneExtractor';
+import { extractLocation } from './parsers/locationExtractor';
+import { extractSkills } from './parsers/skillsExtractor';
+import { extractExperience } from './parsers/experienceExtractor';
+import { extractEducation } from './parsers/educationExtractor';
+import { extractLanguages } from './parsers/languageExtractor';
+
 interface ExtractedCandidate {
   name: string;
   email: string;
@@ -22,300 +33,22 @@ interface ExtractedCandidate {
 }
 
 export class EnhancedResumeParser {
-  private static cleanText(text: string): string {
-    return text
-      .replace(/^%PDF-[\d.]+\s*/, '') // Remove PDF headers
-      .replace(/[^\w\s@.-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  private static extractLines(text: string): string[] {
-    return text
-      .split(/[\n\r]+/)
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-  }
-
-  private static extractValueForKey(lines: string[], keys: string[]): string | null {
-    const keyPattern = new RegExp(`^\\s*(?:${keys.join('|')})\\s*[:\\-]?\\s*(.+)`, 'i');
-    for (const line of lines) {
-      const match = line.match(keyPattern);
-      if (match && match[1]) {
-        return match[1].trim();
-      }
-    }
-    return null;
-  }
-
-  private static extractName(text: string, fileName?: string): string {
-    const lines = this.extractLines(text);
-    
-    // 1. Try key-value extraction
-    const nameFromKey = this.extractValueForKey(lines, ['name', 'candidate name']);
-    if (nameFromKey) return nameFromKey;
-
-    // 2. Try filename
-    if (fileName) {
-      const cleanFileName = fileName.replace(/\.(pdf|doc|docx)$/i, '').replace(/[_-]/g, ' ');
-      if (cleanFileName.length > 2 && cleanFileName.length < 50 && /^[A-Za-z\s.'-]+$/.test(cleanFileName) && !/(resume|cv)/i.test(cleanFileName)) {
-        return cleanFileName.trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      }
-    }
-
-    // 3. Look for name patterns in first few lines
-    for (const line of lines.slice(0, 5)) {
-        const nameMatch = line.match(/^\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})\s*$/);
-        if (nameMatch && nameMatch[1].length < 50) {
-            return nameMatch[1];
-        }
-    }
-    
-    // Fallback to the first line if it looks like a name
-    const firstLine = lines[0] || '';
-    if (firstLine.length > 2 && firstLine.length < 50 && /^[A-Za-z\s.'-]+$/.test(firstLine)) {
-        return firstLine;
-    }
-
-    return "Name not found";
-  }
-
-  private static extractEmail(text: string): string {
-    const lines = this.extractLines(text);
-    
-    // 1. Try key-value extraction
-    const emailFromKey = this.extractValueForKey(lines, ['email', 'e-mail']);
-    if (emailFromKey) {
-        const emailMatch = emailFromKey.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
-        if(emailMatch) return emailMatch[0];
-    }
-    
-    // 2. Fallback to regex search on the whole text
-    const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
-    const matches = text.match(emailPattern);
-    return matches ? matches[0] : "Email not provided";
-  }
-
-  private static extractPhone(text: string): string {
-    const lines = this.extractLines(text);
-    
-    // 1. Try key-value extraction
-    const phoneFromKey = this.extractValueForKey(lines, ['phone', 'mobile', 'contact', 'contact no', 'contact number']);
-    if (phoneFromKey) {
-        return phoneFromKey.replace(/[^\d+]/g, '');
-    }
-    
-    // 2. Fallback to regex patterns, prioritizing Indian numbers
-    const phonePatterns = [
-      /\+91[ -]?\d{10}/,
-      /\+91[ -]?\d{5}[ -]?\d{5}/,
-      /(?<!\d)\d{10}(?!\d)/,
-      /\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/,
-    ];
-
-    for (const pattern of phonePatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        if (/\d{4}\s*-\s*\d{4}/.test(match[0])) continue;
-        return match[0].trim();
-      }
-    }
-
-    return "Phone not provided";
-  }
-
-  private static extractLocation(text: string): string {
-    const lines = this.extractLines(text);
-    
-    // Look for city, state patterns
-    const locationPatterns = [
-      /([A-Z][a-z]+,\s*[A-Z]{2})/,
-      /([A-Z][a-z]+,\s*[A-Z][a-z]+)/,
-      /([A-Z][a-z]+\s+[A-Z][a-z]+,\s*[A-Z]{2})/
-    ];
-
-    for (const line of lines.slice(0, 10)) {
-      for (const pattern of locationPatterns) {
-        const match = line.match(pattern);
-        if (match) {
-          return match[1];
-        }
-      }
-    }
-
-    // Look for address-like patterns
-    const addressPattern = /\b\d+\s+[A-Z][a-z]+\s+(St|Ave|Rd|Dr|Blvd|Lane|Way)/i;
-    for (const line of lines.slice(0, 15)) {
-      if (addressPattern.test(line)) {
-        return line.length > 50 ? line.substring(0, 50) + "..." : line;
-      }
-    }
-
-    return "Location not provided";
-  }
-
-  private static extractSkills(text: string): string[] {
-    const skillsSection = this.findSection(text, ['skills', 'technical skills', 'technologies', 'proficiencies']);
-    const searchText = skillsSection || text;
-
-    const commonSkills = [
-      'JavaScript', 'Python', 'Java', 'React', 'Angular', 'Vue', 'Node.js', 'Express',
-      'HTML', 'CSS', 'TypeScript', 'SQL', 'MongoDB', 'PostgreSQL', 'MySQL',
-      'AWS', 'Azure', 'Docker', 'Kubernetes', 'Git', 'REST', 'GraphQL',
-      'Machine Learning', 'Data Science', 'AI', 'TensorFlow', 'PyTorch',
-      'Leadership', 'Communication', 'Project Management', 'Agile', 'Scrum'
-    ];
-
-    const foundSkills = new Set<string>();
-    
-    for (const skill of commonSkills) {
-      if (searchText.toLowerCase().includes(skill.toLowerCase())) {
-        foundSkills.add(skill);
-      }
-    }
-
-    // Look for skill-like patterns (capitalized words in skills section)
-    if (skillsSection) {
-      const skillWords = skillsSection.match(/\b[A-Z][a-z]+(?:\.[a-z]+)*\b/g) || [];
-      for (const word of skillWords) {
-        if (word.length > 2 && word.length < 20) {
-          foundSkills.add(word);
-        }
-      }
-    }
-
-    return Array.from(foundSkills).slice(0, 15);
-  }
-
-  private static extractExperience(text: string): { text: string; years: number } {
-    const experienceSection = this.findSection(text, ['experience', 'work history', 'employment', 'work experience']);
-    const searchText = experienceSection || text;
-
-    // Look for years of experience mentions
-    const yearPatterns = [
-      /(\d+)\+?\s*years?\s*(?:of\s*)?experience/i,
-      /(\d+)\+?\s*years?\s*in/i,
-      /experience\s*:\s*(\d+)\+?\s*years?/i
-    ];
-
-    let years = 0;
-    for (const pattern of yearPatterns) {
-      const match = searchText.match(pattern);
-      if (match) {
-        years = parseInt(match[1]);
-        break;
-      }
-    }
-
-    // If no explicit years, estimate from job entries
-    if (years === 0) {
-      const jobEntries = searchText.match(/\d{4}\s*-\s*(?:\d{4}|present|current)/gi) || [];
-      years = Math.min(jobEntries.length * 2, 15); // Estimate 2 years per job, cap at 15
-    }
-
-    const experienceText = experienceSection 
-      ? (experienceSection.length > 200 ? experienceSection.substring(0, 200) + "..." : experienceSection)
-      : `${years} years of professional experience`;
-
-    return { text: experienceText, years };
-  }
-
-  private static extractEducation(text: string): { text: string; level: string } {
-    const educationSection = this.findSection(text, ['education', 'academic background', 'qualifications']);
-    const searchText = educationSection || text;
-
-    const degreePatterns = [
-      { pattern: /\b(?:PhD|Ph\.D|Doctorate)/i, level: 'Doctorate' },
-      { pattern: /\b(?:Master|M\.S|M\.A|MBA|MS|MA)\b/i, level: 'Masters' },
-      { pattern: /\b(?:Bachelor|B\.S|B\.A|BS|BA)\b/i, level: 'Bachelors' },
-      { pattern: /\b(?:Associate|A\.S|A\.A|AS|AA)\b/i, level: 'Associates' },
-      { pattern: /\b(?:High School|Diploma|GED)\b/i, level: 'High School' }
-    ];
-
-    let level = "Not specified";
-    let educationText = "Education details not found";
-
-    for (const { pattern, level: degreeLevel } of degreePatterns) {
-      if (pattern.test(searchText)) {
-        level = degreeLevel;
-        break;
-      }
-    }
-
-    if (educationSection) {
-      educationText = educationSection.length > 150 
-        ? educationSection.substring(0, 150) + "..." 
-        : educationSection;
-    }
-
-    return { text: educationText, level };
-  }
-
-  private static extractLanguages(text: string): string[] {
-    const languagesSection = this.findSection(text, ['languages', 'language skills']);
-    const searchText = languagesSection || text;
-
-    const commonLanguages = [
-      'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Russian',
-      'Chinese', 'Japanese', 'Korean', 'Arabic', 'Hindi', 'Dutch', 'Swedish'
-    ];
-
-    const foundLanguages = new Set<string>();
-    
-    for (const lang of commonLanguages) {
-      if (searchText.toLowerCase().includes(lang.toLowerCase())) {
-        foundLanguages.add(lang);
-      }
-    }
-
-    return Array.from(foundLanguages).slice(0, 5);
-  }
-
-  private static findSection(text: string, sectionNames: string[]): string | null {
-    const lines = this.extractLines(text);
-    let sectionStart = -1;
-    let sectionEnd = lines.length;
-
-    // Find section start
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      if (sectionNames.some(name => line.includes(name.toLowerCase()) && line.length < 50)) {
-        sectionStart = i + 1;
-        break;
-      }
-    }
-
-    if (sectionStart === -1) return null;
-
-    // Find section end (next section header)
-    const sectionHeaders = ['experience', 'education', 'skills', 'projects', 'certifications', 'languages', 'summary'];
-    for (let i = sectionStart; i < lines.length; i++) {
-      const line = lines[i].toLowerCase();
-      if (line.length < 50 && sectionHeaders.some(header => line.includes(header) && !sectionNames.includes(header))) {
-        sectionEnd = i;
-        break;
-      }
-    }
-
-    return lines.slice(sectionStart, sectionEnd).join('\n');
-  }
-
   static parseResume(resume: any): ExtractedCandidate {
-    console.log('=== ENHANCED RESUME PARSING (Key-Value Logic) ===');
+    console.log('=== ENHANCED RESUME PARSING (Refactored) ===');
     const content = resume.content || '';
-    const cleanedText = this.cleanText(content);
+    const cleanedText = cleanText(content);
     
     console.log('Processing resume:', resume.name);
     console.log('Content length:', content.length);
 
-    const name = this.extractName(cleanedText, resume.name);
-    const email = this.extractEmail(cleanedText);
-    const phone = this.extractPhone(cleanedText);
-    const location = this.extractLocation(cleanedText);
-    const skills = this.extractSkills(cleanedText);
-    const experience = this.extractExperience(cleanedText);
-    const education = this.extractEducation(cleanedText);
-    const languages = this.extractLanguages(cleanedText);
+    const name = extractName(cleanedText, resume.name);
+    const email = extractEmail(cleanedText);
+    const phone = extractPhone(cleanedText);
+    const location = extractLocation(cleanedText);
+    const skills = extractSkills(cleanedText);
+    const experience = extractExperience(cleanedText);
+    const education = extractEducation(cleanedText);
+    const languages = extractLanguages(cleanedText);
 
     // Categorize skills
     const technicalKeywords = ['javascript', 'python', 'java', 'react', 'angular', 'vue', 'node', 'html', 'css', 'sql', 'aws', 'docker', 'git'];
@@ -352,7 +85,7 @@ export class EnhancedResumeParser {
       github: "Not provided"
     };
 
-    console.log('=== KEY-VALUE EXTRACTION RESULTS ===');
+    console.log('=== REFACTORED EXTRACTION RESULTS ===');
     console.log('Name:', name);
     console.log('Email:', email);
     console.log('Phone:', phone);
