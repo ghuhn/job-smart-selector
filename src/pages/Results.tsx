@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { Download, Mail, Phone, MapPin, Star, CheckCircle, AlertTriangle, FileText, Code } from "lucide-react";
+import { Download, Mail, Phone, MapPin, Star, CheckCircle, AlertTriangle, FileText, Code, Users } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { CandidateAnalysis } from "@/utils/multiAgentSystem";
 import ResultsHeader from "@/components/results/ResultsHeader";
