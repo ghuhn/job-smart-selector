@@ -1,208 +1,152 @@
 
 import { Candidate, EducationEntry, ExperienceEntry } from './multiAgentSystem';
-
-function findSection(text: string, keywords: string[], endKeywords: string[]): string {
-    const textLower = text.toLowerCase();
-    let startIndex = -1;
-    let keywordFound = '';
-
-    for (const keyword of keywords) {
-        const match = textLower.indexOf(keyword.toLowerCase());
-        if (match !== -1) {
-            // Check if it's a heading (surrounded by newlines or at the start)
-            const pre = text.substring(Math.max(0, match - 2), match);
-            const post = text.substring(match + keyword.length, match + keyword.length + 2);
-            if ((pre.trim() === '' || pre.endsWith('\n')) && (post.trim() === '' || post.startsWith('\n'))) {
-               startIndex = match + keyword.length;
-               keywordFound = keyword;
-               break;
-            }
-        }
-    }
-
-    if (startIndex === -1) return "";
-
-    let endIndex = text.length;
-    let closestEndIndex = text.length;
-
-    for (const endKeyword of endKeywords) {
-        if (keywordFound.toLowerCase() === endKeyword.toLowerCase()) continue;
-        let searchIndex = startIndex;
-        
-        while(true){
-            const nextMatchIndex = textLower.indexOf(endKeyword.toLowerCase(), searchIndex);
-            if(nextMatchIndex === -1) break;
-
-            const pre = text.substring(Math.max(0, nextMatchIndex - 2), nextMatchIndex);
-            const post = text.substring(nextMatchIndex + endKeyword.length, nextMatchIndex + endKeyword.length + 2);
-            if ((pre.trim() === '' || pre.endsWith('\n')) && (post.trim() === '' || post.startsWith('\n'))) {
-                if (nextMatchIndex < closestEndIndex) {
-                    closestEndIndex = nextMatchIndex;
-                }
-                break; 
-            }
-            searchIndex = nextMatchIndex + 1;
-        }
-    }
-
-    endIndex = closestEndIndex;
-    return text.substring(startIndex, endIndex).trim();
-}
-
-function calculateExperienceYears(experience: ExperienceEntry[]): number {
-    let totalMonths = 0;
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-
-    for (const job of experience) {
-        const duration = job.duration.toLowerCase();
-        const yearMatches = duration.match(/\b\d{4}\b/g);
-
-        if (yearMatches) {
-            const startYear = parseInt(yearMatches[0], 10);
-            let endYear = startYear;
-
-            if (yearMatches.length > 1) {
-                endYear = parseInt(yearMatches[1], 10);
-            } else if (duration.includes('present') || duration.includes('current')) {
-                endYear = currentYear;
-            }
-            
-            totalMonths += (endYear - startYear) * 12;
-        }
-    }
-    return Math.round(totalMonths / 12);
-}
+// NOTE: I am assuming 'geminiApi.ts' exports a function 'runGemini' that takes a prompt string
+// and returns the LLM's response as a string. If the function has a different name or signature,
+// this will need to be adjusted.
+import { runGemini } from './geminiApi';
 
 export class ResumeParser {
-    static parse(resumeContent: string, fileName: string): Partial<Candidate> {
-        const fullText = resumeContent.replace(/•/g, '\n-'); // Normalize bullets
-        const lines = fullText.split(/[\n\r]+/).map(l => l.trim());
-
-        const education = this.extractEducation(fullText);
-        const experience = this.extractExperience(fullText);
+    static async parse(resumeContent: string): Promise<Partial<Candidate>> {
+        const prompt = this.buildPrompt(resumeContent);
         
-        const candidate: Partial<Candidate> = {
-            name: this.extractName(lines, fileName),
-            email: this.extractEmail(fullText),
-            phone: this.extractPhone(fullText),
-            location: this.extractLocation(lines),
-            skills: this.extractSkills(fullText),
-            languages: this.extractLanguages(fullText),
-            education,
-            experience,
-            experienceYears: calculateExperienceYears(experience),
-            summary: findSection(fullText, ['summary', 'objective', 'professional summary'], ['experience', 'education', 'skills']),
-        };
-
-        return candidate;
+        console.log("--- Sending prompt to LLM for resume parsing ---");
+        const llmOutput = await runGemini(prompt);
+        console.log("--- Received LLM response ---", llmOutput);
+        
+        return this.parseLlmOutput(llmOutput);
     }
 
-    private static extractName(lines: string[], filename: string): string {
-        // Strategy 1: First non-contact line
-        for (const line of lines.slice(0, 5)) {
-            if (line.length > 5 && line.length < 30 && !line.match(/@|\d{5,}|(resume|cv|vitae)/i) && line.match(/^[A-Z][a-z]+ [A-Z][a-z]+(?: [A-Z][a-z]+)?$/)) {
-                return line;
+    private static buildPrompt(resumeText: string): string {
+        return `
+You are a highly intelligent resume understanding agent. You will be given the raw text extracted from a resume — this text may be unstructured, have inconsistent formatting, or use different section headers.
+
+Your task is to carefully read through the resume and extract key candidate information using semantic understanding, not formatting or layout. You should rely on the meaning and context of the words, not the structure.
+
+🔍 What You Must Extract (in this order):
+Candidate Name
+Email Address
+Phone Number
+Location
+Education History
+Work Experience
+Skills
+Languages Known
+
+🧠 Parsing Instructions
+- Do not rely on strict headings like “Education” or “Experience”.
+- Instead, identify each section based on the content, such as:
+  - Education: mentions of degrees, universities, and years
+  - Experience: mentions of roles, companies, and timelines
+  - Skills: comma-separated or bulleted lists of capabilities
+- If dates or headers are missing, infer from phrasing and known patterns.
+- Never hallucinate information — only include details that can be reasonably inferred from the resume text.
+- Use your best judgment to handle typos, unconventional layouts, and missing punctuation.
+
+📝 Output Format (Text-Only, No JSON)
+Use this clear format for your response:
+
+**Name**
+[Full Name]
+
+**Email**
+[email@example.com]
+
+**Phone Number**
+[+91-XXXXXX]
+
+**Location**
+[City, Country]
+
+**Education**
+- [Degree], [Institution] ([Years])
+- ...
+
+**Experience**
+- [Role] at [Company] ([Years])
+  [One-sentence summary if available]
+- ...
+
+**Skills**
+[List of skills]
+
+**Languages Known**
+[List of languages]
+
+--- RESUME TEXT ---
+${resumeText}
+--- END RESUME TEXT ---
+        `;
+    }
+
+    private static parseLlmOutput(llmOutput: string): Partial<Candidate> {
+        const candidate: Partial<Candidate> = {
+            education: [],
+            experience: [],
+            skills: [],
+            languages: []
+        };
+        const lines = llmOutput.split('\n').filter(line => line.trim() !== '');
+
+        let currentSection = '';
+        let sectionKey = '';
+
+        for (const line of lines) {
+            if (line.startsWith('**')) {
+                currentSection = line.replace(/\*\*/g, '').trim();
+                sectionKey = currentSection.toLowerCase().replace(' known', '');
+                continue;
+            }
+
+            switch (sectionKey) {
+                case 'name':
+                    candidate.name = line.trim();
+                    break;
+                case 'email':
+                    candidate.email = line.trim();
+                    break;
+                case 'phone number':
+                    candidate.phone = line.trim();
+                    break;
+                case 'location':
+                    candidate.location = line.trim();
+                    break;
+                case 'education':
+                    const eduMatch = line.trim().match(/-\s*(.*),\s*(.*)\s*\((.*)\)/);
+                    if (eduMatch) {
+                        candidate.education?.push({
+                            degree: eduMatch[1].trim(),
+                            institution: eduMatch[2].trim(),
+                            years: eduMatch[3].trim(),
+                        });
+                    }
+                    break;
+                case 'experience':
+                    const expMatch = line.trim().match(/-\s*(.*)\s*at\s*(.*)\s*\((.*)\)/);
+                    if (expMatch) {
+                        candidate.experience?.push({
+                            role: expMatch[1].trim(),
+                            company: expMatch[2].trim(),
+                            duration: expMatch[3].trim(),
+                            description: '',
+                        });
+                    } else if (candidate.experience && candidate.experience.length > 0 && !line.startsWith('-')) {
+                        const lastExperience = candidate.experience[candidate.experience.length - 1];
+                        lastExperience.description = (lastExperience.description + ' ' + line.trim()).trim();
+                    }
+                    break;
+                case 'skills':
+                    if (candidate.skills) {
+                        candidate.skills = line.split(',').map(s => s.trim()).filter(Boolean);
+                    }
+                    break;
+                case 'languages':
+                     if (candidate.languages) {
+                        candidate.languages = line.split(',').map(s => s.trim()).filter(Boolean);
+                    }
+                    break;
             }
         }
-        
-        // Strategy 2: From filename
-        const fromFile = filename.replace(/\.(pdf|doc|docx)$/i, '').replace(/[-_]/g, ' ').replace(/(resume|cv)/i, '').trim();
-        if (fromFile.split(' ').length >= 2) {
-             return fromFile.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-        }
 
-        return "Name Not Found";
-    }
-
-    private static extractEmail(text: string): string {
-        const match = text.match(/[\w\.-]+@[\w\.-]+\.\w+/);
-        return match ? match[0] : "Not provided";
-    }
-
-    private static extractPhone(text: string): string {
-        const match = text.match(/(?:(?:\+91|0)?[ -]?)?\d{10}\b|\+1[ -]?\(?\d{3}\)?[ -]?\d{3}[ -]?\d{4}/);
-        return match ? match[0].replace(/[^\d+]/g, '') : "Not provided";
-    }
-
-    private static extractLocation(lines: string[]): string {
-        for (const line of lines) {
-             const match = line.match(/\b([A-Za-z]+,\s*(?:[A-Z]{2}|[A-Za-z]+)(?:,\s*[A-Za-z]+)?)\b/);
-             if(match && match[0].length < 40) return match[0];
-        }
-        return "Not provided";
-    }
-
-    private static extractEducation(text: string): EducationEntry[] {
-        const sectionKeywords = ['experience', 'skills', 'projects', 'languages', 'work history'];
-        const section = findSection(text, ['education', 'academic'], sectionKeywords);
-        if (!section) return [];
-
-        const entries: EducationEntry[] = [];
-        const blocks = section.split(/\n\s*\n/); // Split by blank lines
-
-        for (const block of blocks) {
-            if(block.length < 10) continue;
-            
-            const lines = block.split('\n');
-            const degreeLine = lines[0]; // Assume degree is first line of block
-            const institutionLine = lines.length > 1 ? lines[1] : ''; // Assume institution is second
-            
-            const yearsMatch = block.match(/\b(\d{4})\s*–\s*(\d{4}|Present|Current)\b/i);
-            
-            entries.push({
-                degree: degreeLine.replace(/,$/, '').trim(),
-                institution: institutionLine.split(',')[0].trim(),
-                years: yearsMatch ? yearsMatch[0] : "Not specified"
-            });
-        }
-
-        return entries.filter(e => e.degree && e.institution);
-    }
-
-    private static extractExperience(text: string): ExperienceEntry[] {
-        const sectionKeywords = ['education', 'skills', 'projects', 'languages', 'certifications'];
-        const section = findSection(text, ['experience', 'work history', 'professional background'], sectionKeywords);
-        if (!section) return [];
-        
-        const entries: ExperienceEntry[] = [];
-        const blocks = section.split(/(?=\b[A-Z][\w\s-]+\b\s*\n[A-Z][\w\s,]+)/); // Split before a likely new Role/Company
-
-        for (const block of blocks) {
-            if(block.trim().length < 20) continue;
-
-            const lines = block.trim().split('\n');
-            const role = lines[0].trim();
-            const company = lines.length > 1 ? lines[1].split('|')[0].trim() : 'N/A';
-            const durationMatch = block.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|present|current)[\w\s\d-]+)\b/i);
-            const description = lines.slice(2).join('\n').trim();
-
-            entries.push({
-                role,
-                company,
-                duration: durationMatch ? durationMatch[0] : 'N/A',
-                description
-            });
-        }
-
-        return entries.filter(e => e.role && e.company);
-    }
-
-    private static extractSkills(text: string): string[] {
-        const sectionKeywords = ['experience', 'education', 'projects', 'languages'];
-        const section = findSection(text, ['skills', 'technical skills', 'technologies'], sectionKeywords);
-        if (!section) return [];
-        
-        const skills = section.split(/[\n,;•-]/).map(s => s.trim()).filter(s => s.length > 1 && s.length < 25);
-        return [...new Set(skills)];
-    }
-
-    private static extractLanguages(text: string): string[] {
-        const sectionKeywords = ['experience', 'education', 'projects', 'skills'];
-        const section = findSection(text, ['languages'], sectionKeywords);
-        if (!section) return [];
-
-        const languages = section.split(/[\n,;]/).map(s => s.replace(/\(.*\)/, '').trim()).filter(s => s.length > 2 && s.length < 20);
-        return [...new Set(languages)];
+        return candidate;
     }
 }
