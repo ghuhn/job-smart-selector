@@ -24,8 +24,6 @@ const CandidateContactInfo = ({ candidate }: CandidateContactInfoProps) => (
     </div>
     <div className="space-y-2">
       <p><strong>Experience:</strong> {candidate.experienceYears} years</p>
-      <p><strong>Education:</strong> {candidate.educationLevel}</p>
-      <p><strong>Languages:</strong> {candidate.languages.join(', ')}</p>
     </div>
   </div>
 );

@@ -41,8 +41,8 @@ const CandidateList = ({ candidates, selectedCandidate, onSelectCandidate, onDow
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[800px] px-6 pb-6">
-            <div className="space-y-4">
+          <ScrollArea className="h-[800px] p-2">
+            <div className="space-y-4 px-4 py-2">
               {candidates.map((analysis, index) => (
                 <Card
                   key={index}
