@@ -5,97 +5,52 @@ import { SimpleResumeParser, SimpleParsedCandidate } from './simpleResumeParser'
 
 export class SmartCandidateExtractor {
   static async extractCandidate(resume: any): Promise<Candidate> {
-    console.log('=== ENHANCED CANDIDATE EXTRACTION WITH DOUBLE PARSING ===');
-    console.log('Resume file:', resume.name);
-
-    // 1. Original clean/extraction logic (existing)
+    console.log('=== SECTION-AWARE CANDIDATE EXTRACTION ===');
     const content = resume.content || '';
-    const cleanedText = AggressiveTextCleaner.clean(content);
-    const words = AggressiveTextCleaner.extractReadableWords(content);
-    const sentences = AggressiveTextCleaner.extractSentences(content);
-    const lines = AggressiveTextCleaner.extractLines(content);
+    const allLines = AggressiveTextCleaner.extractLines(content);
+    const cleanedText = allLines.join('\n');
+    const allSentences = AggressiveTextCleaner.extractSentences(cleanedText);
+    const allWords = AggressiveTextCleaner.extractReadableWords(cleanedText);
 
-    // LLM logic
-    const llmName = SmartExtractor.extractName(words, sentences, lines, resume.name);
-    const llmEmail = SmartExtractor.extractEmail(words, sentences, lines);
-    const llmPhone = SmartExtractor.extractPhone(words, sentences, lines);
-    const llmLocation = SmartExtractor.extractLocation(words, sentences, lines);
-    const llmSkills = SmartExtractor.extractSkills(words, sentences, lines);
-    const llmExperience = SmartExtractor.extractExperience(words, sentences, lines);
-    const llmEducation = SmartExtractor.extractEducation(words, sentences, lines);
-    const llmLanguages = SmartExtractor.extractLanguages(words, sentences, lines);
-
-    // 2. Classic parser logic
-    const classicParsed: SimpleParsedCandidate = SimpleResumeParser.parse(content);
-
-    function selectField(llmVal: string, classicVal: string, fieldName: string) {
-      if (
-        classicVal &&
-        classicVal !== 'Not provided' &&
-        classicVal !== 'Name Not Found'
-      ) {
-        if (
-          llmVal &&
-          llmVal !== 'Not provided' &&
-          llmVal !== classicVal &&
-          Math.abs((classicVal.length ?? 0) - (llmVal.length ?? 0)) > 5
-        ) {
-          console.log(
-            `Cross-check mismatch on ${fieldName}: [LLM] ${llmVal} vs [Classic] ${classicVal}`
-          );
-          return `${classicVal} (${llmVal})`;
-        }
-        return classicVal;
+    // 1. Sectionize the resume
+    const sections = this.findSections(allLines);
+    
+    // Helper to get section content or fallback to all content
+    const getSectionLines = (keys: string[]) => {
+      for (const key of keys) {
+        if (sections[key]) return sections[key];
       }
-      return llmVal && llmVal !== 'Not provided' ? llmVal : '';
-    }
-
-    function selectList(llmArr: string[], classicArr: string[]): string[] {
-      if (classicArr.length === 0) return llmArr;
-      if (llmArr.length === 0) return classicArr;
-      return Array.from(new Set([...classicArr, ...llmArr])).slice(0, 10);
-    }
-
-    // --- Cross-check/merge results ---
-    const name = selectField(llmName, classicParsed.name, 'name');
-    const email = selectField(llmEmail, classicParsed.email, 'email');
-    const phone = selectField(llmPhone, classicParsed.phone, 'phone');
-    const location = llmLocation;
-    const skills = selectList(llmSkills, classicParsed.skills);
-    const experience = {
-      text: selectField(llmExperience.text, classicParsed.experience, 'experience'),
-      years: llmExperience.years,
+      return allLines;
     };
-    const education = {
-      text: selectField(llmEducation.text, classicParsed.education, 'education'),
-      level: llmEducation.level,
-    };
-    const languages = selectList(llmLanguages, classicParsed.languages);
+    const getSectionText = (keys: string[]) => getSectionLines(keys).join('\n');
 
-    // Keep BOTH sets of extracted values in Candidate for debug display
-    const parsingDebug = {
-      llm: {
-        name: llmName,
-        email: llmEmail,
-        phone: llmPhone,
-        location: llmLocation,
-        skills: llmSkills,
-        experience: llmExperience.text,
-        education: llmEducation.text,
-        languages: llmLanguages
-      },
-      classic: {
-        name: classicParsed.name,
-        email: classicParsed.email,
-        phone: classicParsed.phone,
-        skills: classicParsed.skills,
-        experience: classicParsed.experience,
-        education: classicParsed.education,
-        languages: classicParsed.languages
-      }
-    };
+    // 2. Extract from sections or whole document
+    const contactText = getSectionText(['contact']);
+    const contactLines = getSectionLines(['contact']);
+    const contactWords = AggressiveTextCleaner.extractReadableWords(contactText);
 
-    // --- Rest of the candidate fields (keep as before) ---
+    const name = SmartExtractor.extractName(allWords, allSentences, allLines, resume.name);
+    const email = SmartExtractor.extractEmail(contactWords, [], contactLines);
+    const phone = SmartExtractor.extractPhone(contactWords, [], contactLines);
+    const location = SmartExtractor.extractLocation(allWords, allSentences, allLines);
+    
+    const skillsLines = getSectionLines(['skills']);
+    const skills = SmartExtractor.extractSkills(allWords, [], skillsLines);
+    
+    const experienceLines = getSectionLines(['experience']);
+    const experienceText = experienceLines.join('\n');
+    const experience = SmartExtractor.extractExperience(AggressiveTextCleaner.extractReadableWords(experienceText), [], experienceLines);
+    
+    const educationLines = getSectionLines(['education']);
+    const educationText = educationLines.join('\n');
+    const education = SmartExtractor.extractEducation(AggressiveTextCleaner.extractReadableWords(educationText), [], educationLines);
+    
+    const languagesLines = getSectionLines(['languages']);
+    const languages = SmartExtractor.extractLanguages(allWords, [], languagesLines);
+    
+    const summaryLines = getSectionLines(['summary']);
+    const summarySentences = AggressiveTextCleaner.extractSentences(summaryLines.join('\n'));
+
     const technicalKeywords = [
       'JavaScript',
       'Python',
@@ -127,23 +82,15 @@ export class SmartCandidateExtractor {
     const softSkills = skills.filter((skill) =>
       softKeywords.some((soft) => skill.toLowerCase().includes(soft.toLowerCase()))
     );
-
-    console.log('=== EXTRACTION RESULTS ===');
-    console.log('Name:', name);
-    console.log('Email:', email);
-    console.log('Phone:', phone);
-    console.log('Location:', location);
-    console.log('Experience:', experience);
-    console.log('Education:', education);
-    console.log('Languages:', languages);
-    console.log('Technical Skills:', technicalSkills);
-    console.log('Soft Skills:', softSkills);
+    
+    const certificationLines = getSectionLines(['certifications']);
+    const projectLines = getSectionLines(['projects']);
 
     const candidate: Candidate = {
-      name,
-      email,
-      phone,
-      location,
+      name: name,
+      email: email,
+      phone: phone,
+      location: location,
       skills,
       technicalSkills,
       softSkills,
@@ -151,25 +98,73 @@ export class SmartCandidateExtractor {
       experienceYears: experience.years,
       education: education.text,
       educationLevel: education.level,
-      certifications: this.extractCertifications(words, lines),
+      certifications: this.extractCertifications(certificationLines),
       languages,
-      previousRoles: this.extractPreviousRoles(lines, technicalSkills),
-      projects: this.extractProjects(lines, technicalSkills),
-      achievements: this.extractAchievements(lines),
-      summary: this.extractSummary(sentences, lines),
+      previousRoles: this.extractPreviousRoles(experienceLines, technicalSkills),
+      projects: this.extractProjects(projectLines, technicalSkills),
+      achievements: this.extractAchievements(experienceLines),
+      summary: this.extractSummary(summarySentences, summaryLines, allSentences),
       keywords: [...technicalSkills, ...softSkills].slice(0, 10),
-      linkedIn: this.extractLinkedIn(words, lines),
-      github: this.extractGitHub(words, lines),
-      parsingDebug
+      linkedIn: this.extractLinkedIn(contactWords, contactLines),
+      github: this.extractGitHub(contactWords, contactLines),
     };
 
-    console.log('=== FINAL CROSS-CHECKED CANDIDATE ===');
+    console.log('=== FINAL SECTION-AWARE CANDIDATE ===');
     console.log(candidate);
 
     return candidate;
   }
 
-  private static extractCertifications(words: string[], lines: string[]): string[] {
+  private static findSections(lines: string[]): Record<string, string[]> {
+    const sections: Record<string, string[]> = { _other: [] };
+    let currentSection = '_other';
+
+    const sectionKeywords: Record<string, RegExp> = {
+      contact: /\b(contact|email|phone|linkedin|github)\b/i,
+      summary: /^(summary|objective|profile)$/i,
+      skills: /^(skills|technologies|proficiencies)$/i,
+      experience: /^(experience|work history|employment)$/i,
+      education: /^(education|academic background)$/i,
+      projects: /^(projects|portfolio)$/i,
+      certifications: /^(certifications|licenses|training)$/i,
+      languages: /^(languages)$/i,
+    };
+    
+    const sectionHeaders = Object.keys(sectionKeywords);
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.length < 30 && trimmedLine.length > 0) {
+        let matched = false;
+        for (const sectionName of sectionHeaders) {
+          if (sectionKeywords[sectionName].test(trimmedLine)) {
+            currentSection = sectionName;
+            if (!sections[currentSection]) sections[currentSection] = [];
+            matched = true;
+            break;
+          }
+        }
+        if (matched) continue;
+      }
+      if (!sections[currentSection]) sections[currentSection] = [];
+      sections[currentSection].push(line);
+    }
+    
+    // Special case for contact info which is usually at the top
+    if (!sections.contact) {
+      const contactInfo: string[] = [];
+      for(const line of lines.slice(0, 5)) {
+        if (sectionKeywords.contact.test(line)) {
+          contactInfo.push(line);
+        }
+      }
+      if (contactInfo.length > 0) sections.contact = contactInfo;
+    }
+
+    return sections;
+  }
+  
+  private static extractCertifications(lines: string[]): string[] {
     const certKeywords = ['AWS', 'Microsoft', 'Google', 'PMP', 'Scrum', 'CISSP', 'CompTIA', 'Certified', 'Certification'];
     const certs = new Set<string>();
     
@@ -185,13 +180,14 @@ export class SmartCandidateExtractor {
     }
     
     // Look in words
-    for (const word of words) {
-      for (const cert of certKeywords) {
-        if (word.toLowerCase().includes(cert.toLowerCase())) {
-          certs.add(cert);
-        }
-      }
-    }
+    // const words = lines.join(' ').split(' ');
+    // for (const word of words) {
+    //   for (const cert of certKeywords) {
+    //     if (word.toLowerCase().includes(cert.toLowerCase())) {
+    //       certs.add(cert);
+    //     }
+    //   }
+    // }
     
     return Array.from(certs);
   }
@@ -250,20 +246,14 @@ export class SmartCandidateExtractor {
     return achievements;
   }
 
-  private static extractSummary(sentences: string[], lines: string[]): string {
-    // Look for summary/objective sections
-    for (const line of lines.slice(0, 10)) {
-      if (line.toLowerCase().includes('summary') || line.toLowerCase().includes('objective') || line.toLowerCase().includes('profile')) {
-        const nextLines = lines.slice(lines.indexOf(line) + 1, lines.indexOf(line) + 4);
-        const summary = nextLines.join(' ').trim();
-        if (summary.length > 20) {
-          return summary.length > 150 ? summary.substring(0, 150) + "..." : summary;
-        }
-      }
+  private static extractSummary(sectionSentences: string[], sectionLines: string[], allSentences: string[]): string {
+    if (sectionLines.length > 1) {
+      const summary = sectionLines.join(' ').trim();
+      return summary.length > 250 ? summary.substring(0, 250) + "..." : summary;
     }
     
-    // Fallback to first meaningful sentence
-    const firstMeaningfulSentence = sentences.find(s => 
+    // Fallback to first meaningful sentence from all sentences
+    const firstMeaningfulSentence = allSentences.find(s => 
       s.length > 30 && 
       !s.toLowerCase().includes('resume') && 
       !s.toLowerCase().includes('cv') &&
@@ -272,7 +262,7 @@ export class SmartCandidateExtractor {
     
     return firstMeaningfulSentence ? 
       (firstMeaningfulSentence.length > 150 ? firstMeaningfulSentence.substring(0, 150) + "..." : firstMeaningfulSentence) : 
-      "Professional summary available in resume";
+      "Professional summary not found";
   }
 
   private static extractLinkedIn(words: string[], lines: string[]): string {
