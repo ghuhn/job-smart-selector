@@ -24,9 +24,23 @@ export class OutputParser {
         const lines = llmOutput.split('\n').filter(line => line.trim() !== '');
         let currentSection = '';
         let sectionKey = '';
+        let educationBuffer: string[] = [];
+        let languageBuffer: string[] = [];
 
         for (const line of lines) {
             if (line.startsWith('**') && line.endsWith('**')) {
+                // Process accumulated education lines before switching sections
+                if (sectionKey === 'education' && educationBuffer.length > 0) {
+                    this.processEducationBuffer(educationBuffer, candidate);
+                    educationBuffer = [];
+                }
+                
+                // Process accumulated language lines before switching sections
+                if (sectionKey === 'languages' && languageBuffer.length > 0) {
+                    this.processLanguageBuffer(languageBuffer, candidate);
+                    languageBuffer = [];
+                }
+                
                 currentSection = line.replace(/\*\*/g, '').trim();
                 sectionKey = currentSection.toLowerCase().replace(/\s+/g, '_');
                 console.log('Found section:', currentSection, 'Key:', sectionKey);
@@ -68,44 +82,8 @@ export class OutputParser {
                     console.log('Parsed experience years:', candidate.experienceYears);
                     break;
                 case 'education':
-                    console.log('Processing education line:', content);
-                    // Handle various education formats
-                    const eduMatch = content.match(/-?\s*(.*?),\s*(.*?)\s*\(([^)]+)\)/);
-                    if (eduMatch) {
-                        const eduEntry = {
-                            degree: eduMatch[1].trim(),
-                            institution: eduMatch[2].trim(),
-                            years: eduMatch[3].trim(),
-                        };
-                        candidate.education?.push(eduEntry);
-                        console.log('Added education entry:', eduEntry);
-                    } else {
-                        // Try alternative format: Degree from Institution (Year)
-                        const altMatch = content.match(/-?\s*(.*?)\s+from\s+(.*?)\s*\(([^)]+)\)/i);
-                        if (altMatch) {
-                            const eduEntry = {
-                                degree: altMatch[1].trim(),
-                                institution: altMatch[2].trim(),
-                                years: altMatch[3].trim(),
-                            };
-                            candidate.education?.push(eduEntry);
-                            console.log('Added education entry (alt format):', eduEntry);
-                        } else {
-                            // Try simple format: just extract what we can
-                            if (content.includes('-') || content.length > 10) {
-                                const parts = content.replace(/^-\s*/, '').split(/[,()]/);
-                                if (parts.length >= 2) {
-                                    const eduEntry = {
-                                        degree: parts[0].trim(),
-                                        institution: parts[1].trim(),
-                                        years: parts[2] ? parts[2].trim() : 'Not specified',
-                                    };
-                                    candidate.education?.push(eduEntry);
-                                    console.log('Added education entry (simple format):', eduEntry);
-                                }
-                            }
-                        }
-                    }
+                    console.log('Adding to education buffer:', content);
+                    educationBuffer.push(content);
                     break;
                 case 'experience':
                     const expMatch = content.match(/-?\s*(.*?)\s*at\s*(.*?)\s*\(([^)]+)\)/);
@@ -145,11 +123,8 @@ export class OutputParser {
                     }
                     break;
                 case 'languages':
-                    console.log('Processing languages section with content:', content);
-                    if (candidate.languages) {
-                        candidate.languages = LanguageUtils.parseLanguages(content);
-                        console.log('Parsed languages result:', candidate.languages);
-                    }
+                    console.log('Adding to language buffer:', content);
+                    languageBuffer.push(content);
                     break;
                 case 'projects':
                     const projectMatch = content.match(/-?\s*(.*?):\s*(.*?)\s*\(([^)]+)\)/);
@@ -174,8 +149,79 @@ export class OutputParser {
             }
         }
 
+        // Process any remaining buffers
+        if (educationBuffer.length > 0) {
+            this.processEducationBuffer(educationBuffer, candidate);
+        }
+        if (languageBuffer.length > 0) {
+            this.processLanguageBuffer(languageBuffer, candidate);
+        }
+
         console.log('=== FINAL PARSED CANDIDATE ===');
         console.log(candidate);
         return candidate;
+    }
+
+    private static processEducationBuffer(buffer: string[], candidate: ParsedCandidate) {
+        console.log('Processing education buffer:', buffer);
+        const allEducationText = buffer.join(' ');
+        
+        for (const line of buffer) {
+            if (line.trim() === '' || line.toLowerCase().includes('not provided')) continue;
+            
+            // Try multiple education parsing patterns
+            const patterns = [
+                // Pattern: Degree, Institution (Year)
+                /^-?\s*([^,]+),\s*([^(]+)\s*\(([^)]+)\)/,
+                // Pattern: Degree from Institution (Year)
+                /^-?\s*(.+?)\s+from\s+(.+?)\s*\(([^)]+)\)/i,
+                // Pattern: Institution: Degree (Year)
+                /^-?\s*([^:]+):\s*([^(]+)\s*\(([^)]+)\)/,
+                // Pattern: Degree - Institution - Year
+                /^-?\s*([^-]+)\s*-\s*([^-]+)\s*-\s*(.+)/,
+                // Pattern: Just degree and institution without parentheses
+                /^-?\s*([^,]+),\s*(.+)/
+            ];
+            
+            let matched = false;
+            for (const pattern of patterns) {
+                const match = line.match(pattern);
+                if (match) {
+                    const eduEntry = {
+                        degree: match[1].trim(),
+                        institution: match[2].trim(),
+                        years: match[3] ? match[3].trim() : 'Not specified',
+                    };
+                    candidate.education?.push(eduEntry);
+                    console.log('Added education entry:', eduEntry);
+                    matched = true;
+                    break;
+                }
+            }
+            
+            // If no pattern matched, try to extract what we can
+            if (!matched && line.length > 10) {
+                const parts = line.replace(/^-\s*/, '').split(/[,\(\)]/);
+                if (parts.length >= 2) {
+                    const eduEntry = {
+                        degree: parts[0].trim(),
+                        institution: parts[1].trim(),
+                        years: parts[2] ? parts[2].trim() : 'Not specified',
+                    };
+                    candidate.education?.push(eduEntry);
+                    console.log('Added education entry (fallback):', eduEntry);
+                }
+            }
+        }
+    }
+
+    private static processLanguageBuffer(buffer: string[], candidate: ParsedCandidate) {
+        console.log('Processing language buffer:', buffer);
+        const allLanguageText = buffer.join(', ');
+        
+        if (candidate.languages) {
+            candidate.languages = LanguageUtils.parseLanguages(allLanguageText);
+            console.log('Final parsed languages:', candidate.languages);
+        }
     }
 }

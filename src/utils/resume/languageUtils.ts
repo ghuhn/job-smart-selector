@@ -29,48 +29,48 @@ export class LanguageUtils {
         
         const languages: string[] = [];
         
-        // Split by common separators
-        const parts = languageText.split(/[,;|&\n]+/);
-        console.log('Split language parts:', parts);
-        
-        for (const part of parts) {
-            const trimmedPart = part.trim();
-            if (!trimmedPart) continue;
-            
-            console.log('Processing language part:', trimmedPart);
-            
-            // Check if this part contains a language - use case insensitive matching
-            for (const language of this.COMMON_LANGUAGES) {
-                if (new RegExp(`\\b${language}\\b`, 'i').test(trimmedPart)) {
-                    // Extract proficiency if present
-                    let proficiency = '';
-                    for (const level of this.PROFICIENCY_LEVELS) {
-                        if (new RegExp(`\\b${level}\\b`, 'i').test(trimmedPart)) {
-                            proficiency = ` (${level})`;
-                            break;
-                        }
+        // First, try to find languages using exact word matching
+        for (const language of this.COMMON_LANGUAGES) {
+            const regex = new RegExp(`\\b${language}\\b`, 'gi');
+            const matches = languageText.match(regex);
+            if (matches) {
+                // Look for proficiency level near this language
+                let proficiency = '';
+                for (const level of this.PROFICIENCY_LEVELS) {
+                    const proficiencyRegex = new RegExp(`\\b${level}\\b.*?\\b${language}\\b|\\b${language}\\b.*?\\b${level}\\b`, 'gi');
+                    if (proficiencyRegex.test(languageText)) {
+                        proficiency = ` (${level})`;
+                        break;
                     }
-                    
-                    const languageEntry = `${language}${proficiency}`;
-                    if (!languages.includes(languageEntry)) {
-                        languages.push(languageEntry);
-                        console.log('Added language:', languageEntry);
-                    }
-                    break;
+                }
+                
+                const languageEntry = `${language}${proficiency}`;
+                if (!languages.some(lang => lang.toLowerCase().includes(language.toLowerCase()))) {
+                    languages.push(languageEntry);
+                    console.log('Added language:', languageEntry);
                 }
             }
         }
         
-        // If no languages found using strict matching, try a more lenient approach
+        // If no languages found with exact matching, try more flexible approach
         if (languages.length === 0) {
-            console.log('No languages found with strict matching, trying lenient approach');
-            // Split and clean each part, then add if it looks like a language
-            const cleanedParts = parts.map(p => p.trim()).filter(p => p.length > 0);
-            for (const part of cleanedParts) {
-                // If it's a single word or two words, likely a language
-                if (part.split(' ').length <= 2 && part.length >= 3) {
-                    languages.push(part);
-                    console.log('Added language (lenient):', part);
+            console.log('No languages found with exact matching, trying flexible approach');
+            
+            // Split by common separators and analyze each part
+            const parts = languageText.split(/[,;|&\n\-•]/);
+            
+            for (const part of parts) {
+                const trimmedPart = part.trim();
+                if (!trimmedPart || trimmedPart.length < 3) continue;
+                
+                // Skip common non-language words
+                const skipWords = ['not', 'provided', 'languages', 'language', 'skills', 'known', 'speak', 'spoken'];
+                if (skipWords.some(word => trimmedPart.toLowerCase().includes(word))) continue;
+                
+                // Check if this looks like a language name (starts with capital, reasonable length)
+                if (/^[A-Z][a-z]+(\s[A-Z][a-z]+)?$/.test(trimmedPart) && trimmedPart.length <= 20) {
+                    languages.push(trimmedPart);
+                    console.log('Added language (flexible):', trimmedPart);
                 }
             }
         }
