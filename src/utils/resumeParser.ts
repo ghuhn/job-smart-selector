@@ -1,5 +1,5 @@
 
-import { Candidate } from './multiAgentSystem';
+import type { Candidate } from '@/types/candidates';
 // NOTE: I am assuming 'geminiApi.ts' exports a function 'runGemini' that takes a prompt string
 // and returns the LLM's response as a string. If the function has a different name or signature,
 // this will need to be adjusted.

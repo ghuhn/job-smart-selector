@@ -1,8 +1,7 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin, Star, AlertTriangle, FileText, Code, Users } from "lucide-react";
-import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import type { CandidateAnalysis } from "@/types/candidates";
 import AgentScoreCircles from "@/components/results/AgentScoreCircles";
 
 interface CandidateDetailProps {
@@ -132,12 +131,12 @@ const CandidateDetail = ({ analysis }: CandidateDetailProps) => {
                 <div key={category}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-medium capitalize">{category.replace('_', ' ')}</span>
-                    <span className={`text-sm font-bold ${getScoreColor(score)}`}>{score}%</span>
+                    <span className={`text-sm font-bold ${getScoreColor(score as number)}`}>{score as number}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-1000"
-                      style={{ width: `${score}%` }}
+                      style={{ width: `${score as number}%` }}
                     ></div>
                   </div>
                 </div>

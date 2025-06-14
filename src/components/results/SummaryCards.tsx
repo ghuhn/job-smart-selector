@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Award, TrendingUp, User, Brain } from "lucide-react";
-import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import type { CandidateAnalysis } from "@/types/candidates";
 
 interface SummaryCardsProps {
   candidates: CandidateAnalysis[];

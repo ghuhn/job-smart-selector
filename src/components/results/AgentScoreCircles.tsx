@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Users, Code, TrendingUp, User, Brain } from "lucide-react";
-import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import type { CandidateAnalysis } from "@/types/candidates";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 

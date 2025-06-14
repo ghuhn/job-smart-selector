@@ -1,8 +1,9 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Mail, MapPin, Code } from "lucide-react";
-import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import type { CandidateAnalysis } from "@/types/candidates";
 
 interface CandidateListProps {
   candidates: CandidateAnalysis[];

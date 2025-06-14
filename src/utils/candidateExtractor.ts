@@ -1,5 +1,6 @@
+
 import { ResumeParser } from './resumeParser';
-import { Candidate, ExperienceEntry } from './multiAgentSystem';
+import type { Candidate, ExperienceEntry } from '@/types/candidates';
 
 function calculateExperienceYears(experience: ExperienceEntry[] | undefined): number {
     if (!experience) return 0;
