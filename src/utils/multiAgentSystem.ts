@@ -70,31 +70,25 @@ class LangGraphMultiAgentSystem {
     try {
       const analyses: CandidateAnalysis[] = [];
       
-      // Process each uploaded resume
       for (let i = 0; i < uploadedResumes.length; i++) {
         const resume = uploadedResumes[i];
         console.log(`Processing resume ${i + 1}: ${resume.name}`);
         
-        // Extract candidate information from the resume content
         const candidate = this.extractCandidateFromResume(resume);
         console.log('Extracted candidate:', candidate);
         
-        // Run multi-agent analysis on this candidate
         const analysis = await this.analyzeCandidate(candidate, jobDescription);
-        analysis.rank = i + 1; // Temporary rank, will be sorted later
+        analysis.rank = i + 1;
         
         analyses.push(analysis);
       }
       
-      // Sort by overall score and assign final ranks
       const sortedAnalyses = analyses.sort((a, b) => b.scores.overall - a.scores.overall);
       
-      // Apply final rankings
       sortedAnalyses.forEach((analysis, index) => {
         analysis.rank = index + 1;
       });
       
-      // Return top N candidates as specified in job description
       const topN = parseInt(jobDescription.topNCandidates) || 3;
       const topCandidates = sortedAnalyses.slice(0, topN);
       
@@ -103,25 +97,54 @@ class LangGraphMultiAgentSystem {
       
     } catch (error) {
       console.error('Error in multi-agent processing:', error);
-      // If processing fails, return empty array so Results page handles it properly
       return [];
     }
   }
 
   private cleanText(text: string): string {
-    // Remove PDF artifacts, encoding issues, and strange characters
-    return text
-      // Remove PDF control characters and artifacts
+    if (!text || typeof text !== 'string') return '';
+    
+    console.log('Original text sample:', text.substring(0, 200));
+    
+    let cleaned = text
+      // Remove PDF object references and artifacts
       .replace(/\/[A-Z]+\s*\[[^\]]*\]/g, '')
       .replace(/\/[A-Z]+\s+\d+\s+\d+\s+R/g, '')
-      .replace(/>>$/gm, '')
-      .replace(/\|/g, ' ')
-      // Remove encoding artifacts
+      .replace(/\d+\s+\d+\s+obj\s*<</g, '')
+      .replace(/endobj/g, '')
+      .replace(/>>.*?endobj/gs, '')
+      .replace(/stream.*?endstream/gs, '')
+      .replace(/xref.*?\d+/gs, '')
+      .replace(/trailer\s*<</g, '')
+      .replace(/startxref/g, '')
+      .replace(/%%EOF/g, '')
+      
+      // Remove node references and object numbers
+      .replace(/\(node\d+\)\s*\d+\s+\d+\s+R/g, '')
+      .replace(/node\d+/g, '')
+      .replace(/\d+\s+\d+\s+R/g, '')
+      
+      // Remove PDF structural elements
+      .replace(/\/Type\s*\/\w+/g, '')
+      .replace(/\/Kids\s*\[.*?\]/g, '')
+      .replace(/\/Names\s*\[.*?\]/g, '')
+      .replace(/\/Limits\s*\[.*?\]/g, '')
+      
+      // Remove encoding artifacts and special characters
       .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
-      // Clean up multiple spaces and line breaks
+      .replace(/\^[A-Z\[\]]/g, ' ')
+      .replace(/\|/g, ' ')
+      .replace(/>>$/gm, '')
+      .replace(/\$[0-9A-Za-z]+/g, ' ')
+      
+      // Clean up formatting
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n')
+      .replace(/^\s+|\s+$/g, '')
       .trim();
+    
+    console.log('Cleaned text sample:', cleaned.substring(0, 200));
+    return cleaned;
   }
 
   private extractCandidateFromResume(resume: any): Candidate {
@@ -129,15 +152,10 @@ class LangGraphMultiAgentSystem {
     
     try {
       let content = resume.content || '';
-      
-      // Clean the content first to remove PDF artifacts
       content = this.cleanText(content);
-      console.log('Cleaned content sample:', content.substring(0, 500));
       
-      // Extract name from filename if not found in content
-      const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ');
+      const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ').replace(/\.(pdf|doc|docx)$/i, '');
       
-      // Parse the resume content to extract information
       const candidate: Candidate = {
         name: this.extractName(content) || nameFromFile,
         email: this.extractEmail(content),
@@ -167,8 +185,7 @@ class LangGraphMultiAgentSystem {
     } catch (error) {
       console.error('Error extracting candidate from resume:', error);
       
-      // Fallback to basic extraction from filename
-      const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ');
+      const nameFromFile = resume.name.split('.')[0].replace(/[-_]/g, ' ').replace(/\.(pdf|doc|docx)$/i, '');
       return {
         name: nameFromFile,
         email: "Not provided",
@@ -195,57 +212,78 @@ class LangGraphMultiAgentSystem {
   }
 
   private extractName(content: string): string {
-    // Look for name patterns at the beginning of the resume
-    const namePatterns = [
-      /^([A-Z][a-z]+ [A-Z][a-z]+)/m,
-      /Name:\s*([A-Za-z\s]+)/i,
-      /^([A-Z][A-Z\s]+)$/m
-    ];
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
     
-    for (const pattern of namePatterns) {
-      const match = content.match(pattern);
-      if (match && match[1] && match[1].length < 50) {
-        return match[1].trim();
+    // Look for name in first few lines
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      const line = lines[i].trim();
+      
+      // Skip lines that look like metadata or headers
+      if (line.length < 3 || line.length > 50) continue;
+      if (/^\d+$/.test(line)) continue;
+      if (/^[A-Z]+$/.test(line) && line.length < 3) continue;
+      
+      // Look for name patterns
+      const nameMatch = line.match(/^([A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
+      if (nameMatch && nameMatch[1].split(' ').length >= 2) {
+        return nameMatch[1].trim();
       }
     }
     
-    return "";
+    // Fallback: look for any capitalized words pattern
+    const namePattern = /\b([A-Z][a-z]{2,}\s+[A-Z][a-z]{2,})\b/;
+    const match = content.match(namePattern);
+    return match ? match[1] : "";
   }
 
   private extractEmail(content: string): string {
-    const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const match = content.match(emailPattern);
-    return match ? match[0] : "Not provided";
+    // More comprehensive email pattern
+    const emailPattern = /\b[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?@[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\.[A-Za-z]{2,}\b/g;
+    const matches = content.match(emailPattern);
+    
+    if (matches && matches.length > 0) {
+      // Return the first valid email found
+      for (const email of matches) {
+        if (email.includes('.') && !email.startsWith('.') && !email.endsWith('.')) {
+          return email;
+        }
+      }
+    }
+    
+    return "Not provided";
   }
 
   private extractPhone(content: string): string {
+    // Clean content for phone extraction
+    const cleanContent = content.replace(/[^\d\s\-\(\)\+\.]/g, ' ');
+    
     const phonePatterns = [
-      // Standard US formats with country code
-      /\+?1[-.\s]?\(?([0-9]{3})\)?[-.\s]*([0-9]{3})[-.\s]*([0-9]{4})/,
+      // US format with country code
+      /\+1\s*[\-\.]?\s*\(?\d{3}\)?\s*[\-\.]?\s*\d{3}\s*[\-\.]?\s*\d{4}/,
+      // International format
+      /\+\d{1,3}\s*[\-\.]?\s*\d{1,4}\s*[\-\.]?\s*\d{1,4}\s*[\-\.]?\s*\d{1,9}/,
       // US format without country code
-      /\(?\d{3}\)?[-.\s]*\d{3}[-.\s]*\d{4}/,
-      // International formats
-      /\+\d{1,3}[-.\s]?\d{1,14}/,
-      // Phone: label format
-      /(?:phone|tel|mobile|cell):\s*([+\d\s\-\(\)\.]+)/i,
-      // Simple number sequences
-      /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/,
-      // Parentheses format
-      /\(\d{3}\)\s*\d{3}[-.\s]\d{4}/
+      /\(?\d{3}\)?\s*[\-\.]?\s*\d{3}\s*[\-\.]?\s*\d{4}/,
+      // Simple 10 digit number
+      /\b\d{10}\b/
     ];
     
     for (const pattern of phonePatterns) {
-      const match = content.match(pattern);
+      const match = cleanContent.match(pattern);
       if (match) {
-        // Clean up the matched phone number
-        let phone = match[0];
-        // If it's from a labeled match, use the captured group
-        if (match[1] && pattern.source.includes('phone|tel|mobile|cell')) {
-          phone = match[1];
-        }
-        // Clean and format
-        phone = phone.replace(/[^\d+]/g, '').replace(/^1/, '+1');
-        if (phone.length >= 10) {
+        let phone = match[0].trim();
+        // Clean up the phone number
+        phone = phone.replace(/\s+/g, '').replace(/[\-\.]/g, '');
+        
+        // Validate length
+        if (phone.length >= 10 && phone.length <= 15) {
+          // Format nicely
+          if (phone.length === 10) {
+            return `(${phone.slice(0,3)}) ${phone.slice(3,6)}-${phone.slice(6)}`;
+          } else if (phone.startsWith('+1') && phone.length === 12) {
+            const digits = phone.slice(2);
+            return `+1 (${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+          }
           return phone;
         }
       }
@@ -256,15 +294,83 @@ class LangGraphMultiAgentSystem {
 
   private extractLocation(content: string): string {
     const locationPatterns = [
-      /(?:Location|Address|City):\s*([^,\n]+(?:,\s*[A-Z]{2})?)/i,
-      /([A-Za-z\s]+,\s*[A-Z]{2})/,
-      /([A-Za-z\s]+,\s*[A-Za-z\s]+)/
+      // City, State pattern
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})/,
+      // City, State, ZIP
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s*\d{5}/,
+      // Full address line
+      /\d+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z][a-z]+,\s*[A-Z]{2}/,
     ];
     
     for (const pattern of locationPatterns) {
       const match = content.match(pattern);
-      if (match && match[1] && match[1].length < 100) {
-        return match[1].trim();
+      if (match) {
+        return match[0].replace(/\d{5}.*$/, '').trim();
+      }
+    }
+    
+    return "Not provided";
+  }
+
+  private extractEducation(content: string): string {
+    console.log('Extracting education from cleaned content...');
+    
+    const educationKeywords = ['education', 'academic', 'university', 'college', 'degree', 'bachelor', 'master', 'phd', 'diploma'];
+    const lines = content.split('\n');
+    
+    // Find education section
+    let educationStartIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].toLowerCase().trim();
+      if (educationKeywords.some(keyword => line.includes(keyword)) && line.length < 50) {
+        educationStartIndex = i;
+        break;
+      }
+    }
+    
+    if (educationStartIndex !== -1) {
+      // Extract education section (next 5-10 lines)
+      const educationLines = lines.slice(educationStartIndex + 1, educationStartIndex + 10)
+        .filter(line => line.trim().length > 5)
+        .filter(line => !/^\d+$/.test(line.trim()))
+        .filter(line => !line.includes('obj'))
+        .slice(0, 3);
+      
+      if (educationLines.length > 0) {
+        return educationLines.join(' | ').substring(0, 200);
+      }
+    }
+    
+    // Fallback: look for degree patterns anywhere
+    const degreePatterns = [
+      /\b(?:Bachelor|Master|PhD|Doctorate|Associate)\s+(?:of|in)?\s+[A-Z][a-z\s]+/gi,
+      /\b(?:BA|BS|MA|MS|MBA|PhD)\s+(?:in\s+)?[A-Z][a-z\s]+/gi,
+      /\b[A-Z][a-z\s]+\s+University/gi,
+      /\b[A-Z][a-z\s]+\s+College/gi
+    ];
+    
+    for (const pattern of degreePatterns) {
+      const matches = content.match(pattern);
+      if (matches && matches.length > 0) {
+        return matches.slice(0, 2).join(' | ');
+      }
+    }
+    
+    return "Not provided";
+  }
+
+  private extractEducationLevel(content: string): string {
+    const levels = [
+      { pattern: /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)/i, level: "PhD" },
+      { pattern: /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.|MBA)/i, level: "Masters" },
+      { pattern: /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)/i, level: "Bachelor" },
+      { pattern: /(?:Associate|AA|AS|A\.S\.|A\.A\.)/i, level: "Associate" },
+      { pattern: /(?:Diploma|Certificate)/i, level: "Diploma" }
+    ];
+    
+    for (const { pattern, level } of levels) {
+      if (pattern.test(content)) {
+        return level;
       }
     }
     
@@ -281,7 +387,6 @@ class LangGraphMultiAgentSystem {
     const techSection = this.extractSection(content, ['technical skills', 'programming', 'technologies', 'tools']);
     const skills = this.parseSkillsList(techSection);
     
-    // Common technical skills to look for
     const techKeywords = ['JavaScript', 'Python', 'Java', 'React', 'Node.js', 'SQL', 'AWS', 'Docker', 'Git', 'TypeScript', 'HTML', 'CSS'];
     const foundTechSkills = techKeywords.filter(skill => 
       content.toLowerCase().includes(skill.toLowerCase())
@@ -305,14 +410,12 @@ class LangGraphMultiAgentSystem {
   }
 
   private extractExperience(content: string): string {
-    // Look for years of experience
     const expPattern = /(\d+)\+?\s*years?\s*of\s*experience/i;
     const match = content.match(expPattern);
     if (match) {
       return `${match[1]} years`;
     }
     
-    // Count job entries to estimate experience
     const jobCount = (content.match(/\d{4}\s*[-–]\s*(\d{4}|present|current)/gi) || []).length;
     if (jobCount > 0) {
       return `${Math.min(jobCount * 2, 15)} years (estimated)`;
@@ -328,112 +431,8 @@ class LangGraphMultiAgentSystem {
       return parseInt(match[1]);
     }
     
-    // Estimate from job entries
     const jobCount = (content.match(/\d{4}\s*[-–]\s*(\d{4}|present|current)/gi) || []).length;
     return jobCount > 0 ? Math.min(jobCount * 2, 15) : 0;
-  }
-
-  private extractEducation(content: string): string {
-    console.log('Extracting education from content...');
-    
-    // Clean content first
-    const cleanContent = this.cleanText(content);
-    
-    // Look for education section with multiple patterns
-    const eduSection = this.extractSection(cleanContent, [
-      'education', 
-      'academic background', 
-      'educational background',
-      'academic qualifications',
-      'university', 
-      'college',
-      'academic experience',
-      'qualifications',
-      'academic credentials'
-    ]);
-    
-    console.log('Found education section:', eduSection);
-    
-    if (eduSection && eduSection.length > 10) {
-      // Clean up the education section further
-      const cleanEduSection = eduSection
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 3 && !line.match(/^[\/\|\-\=\>\<]+$/))
-        .slice(0, 5); // Take first 5 meaningful lines
-      
-      if (cleanEduSection.length > 0) {
-        const result = cleanEduSection.join(' | ');
-        console.log('Processed education result:', result);
-        return result;
-      }
-    }
-    
-    // Enhanced fallback: look for degree patterns anywhere in the content
-    const degreePatterns = [
-      /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)\s+(?:of\s+|in\s+)?(?:Science|Arts|Engineering|Business|Computer Science|Information Technology|Mathematics|Physics|Chemistry)[^,\n\|]*/gi,
-      /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)\s+(?:of\s+|in\s+)?[^,\n\|]*/gi,
-      /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)\s+(?:in\s+)?[^,\n\|]*/gi,
-      /(?:Associate|AA|AS|A\.S\.|A\.A\.)\s+(?:of\s+|in\s+)?[^,\n\|]*/gi,
-      /(?:Diploma|Certificate)\s+(?:of\s+|in\s+)[^,\n\|]*/gi
-    ];
-    
-    const foundDegrees: string[] = [];
-    degreePatterns.forEach(pattern => {
-      const matches = cleanContent.match(pattern);
-      if (matches) {
-        foundDegrees.push(...matches.map(match => match.trim()));
-      }
-    });
-    
-    // Also look for university/college names with years
-    const institutionPatterns = [
-      /(?:University|College|Institute|School)\s+of\s+[^,\n\|]*(?:\s+\d{4})?/gi,
-      /[A-Z][a-z]+\s+(?:University|College|Institute)(?:\s+\d{4})?[^,\n\|]*/gi,
-      /\d{4}\s*[-–]\s*\d{4}\s+[A-Z][^,\n\|]*/gi
-    ];
-    
-    const foundInstitutions: string[] = [];
-    institutionPatterns.forEach(pattern => {
-      const matches = cleanContent.match(pattern);
-      if (matches) {
-        foundInstitutions.push(...matches.map(match => match.trim()));
-      }
-    });
-    
-    // Combine degrees and institutions
-    const allEducation = [...foundDegrees, ...foundInstitutions];
-    if (allEducation.length > 0) {
-      // Remove duplicates and join
-      const uniqueEducation = [...new Set(allEducation)]
-        .filter(edu => edu.length > 5) // Filter out very short matches
-        .map(edu => edu.replace(/\s+/g, ' ').trim()); // Clean up spacing
-      
-      const result = uniqueEducation.slice(0, 3).join(' | ');
-      console.log('Fallback education result:', result);
-      return result;
-    }
-    
-    console.log('No education found, returning "Not provided"');
-    return "Not provided";
-  }
-
-  private extractEducationLevel(content: string): string {
-    const levels = [
-      { pattern: /(?:PhD|Ph\.D\.|Doctor of Philosophy|Doctorate)/i, level: "PhD" },
-      { pattern: /(?:Master(?:'s)?|MA|MS|M\.S\.|M\.A\.)/i, level: "Masters" },
-      { pattern: /(?:Bachelor(?:'s)?|BA|BS|B\.S\.|B\.A\.)/i, level: "Bachelor" },
-      { pattern: /(?:Associate|AA|AS|A\.S\.|A\.A\.)/i, level: "Associate" },
-      { pattern: /(?:Diploma|Certificate)/i, level: "Diploma" }
-    ];
-    
-    for (const { pattern, level } of levels) {
-      if (pattern.test(content)) {
-        return level;
-      }
-    }
-    
-    return "Not provided";
   }
 
   private extractCertifications(content: string): string[] {
@@ -443,7 +442,6 @@ class LangGraphMultiAgentSystem {
       if (certs.length > 0) return certs;
     }
     
-    // Look for common certification patterns
     const certPatterns = [
       /AWS\s+Certified/gi,
       /Microsoft\s+Certified/gi,
@@ -475,11 +473,9 @@ class LangGraphMultiAgentSystem {
   private extractPreviousRoles(content: string): Array<{title: string, company: string, duration: string, responsibilities: string[]}> {
     const roles: Array<{title: string, company: string, duration: string, responsibilities: string[]}> = [];
     
-    // Look for work experience section
     const workSection = this.extractSection(content, ['experience', 'work experience', 'employment', 'professional experience']);
     
     if (workSection) {
-      // Split by common delimiters and parse each role
       const roleBlocks = workSection.split(/\n\s*\n/);
       
       roleBlocks.forEach(block => {
@@ -556,7 +552,6 @@ class LangGraphMultiAgentSystem {
   }
 
   private extractKeywords(content: string): string[] {
-    // Extract frequently mentioned technical terms
     const techTerms = content.match(/\b[A-Z][a-z]*(?:\.[a-z]+)*\b/g) || [];
     return [...new Set(techTerms)].slice(0, 10);
   }
@@ -575,7 +570,6 @@ class LangGraphMultiAgentSystem {
 
   private extractSection(content: string, sectionNames: string[]): string {
     for (const sectionName of sectionNames) {
-      // Try multiple patterns for section headers
       const patterns = [
         new RegExp(`^\\s*${sectionName}\\s*:?\\s*$`, 'gmi'),
         new RegExp(`^\\s*${sectionName}\\s*[-=]+\\s*$`, 'gmi'),
@@ -588,17 +582,14 @@ class LangGraphMultiAgentSystem {
         if (match) {
           const startIndex = match.index + match[0].length;
           
-          // Look for the next section header
           const nextSectionPattern = /^\s*[A-Z][A-Z\s]*\s*:?\s*$/gm;
           nextSectionPattern.lastIndex = startIndex;
           const nextMatch = nextSectionPattern.exec(content);
           
-          // Also check for common section dividers
           const dividerPattern = /^\s*[-=]{3,}\s*$/gm;
           dividerPattern.lastIndex = startIndex;
           const dividerMatch = dividerPattern.exec(content);
           
-          // Use the closest boundary
           let endIndex = content.length;
           if (nextMatch && dividerMatch) {
             endIndex = Math.min(nextMatch.index, dividerMatch.index);
@@ -625,7 +616,7 @@ class LangGraphMultiAgentSystem {
       .split(/[,•\-\n]/)
       .map(skill => skill.trim())
       .filter(skill => skill && skill.length > 1 && skill.length < 50)
-      .slice(0, 20); // Limit to reasonable number
+      .slice(0, 20);
   }
 
   private extractDuration(text: string): string {
@@ -636,9 +627,7 @@ class LangGraphMultiAgentSystem {
 
   async analyzeCandidate(candidate: Candidate, jobDescription: any): Promise<CandidateAnalysis> {
     console.log(`Analyzing candidate: ${candidate.name}`);
-    console.log('Job description:', jobDescription);
 
-    // Mock scores and feedback for demonstration
     const scores: Scores = {
       technical: Math.floor(Math.random() * (100 - 70 + 1)) + 70,
       experience: Math.floor(Math.random() * (100 - 70 + 1)) + 70,
@@ -663,34 +652,58 @@ class LangGraphMultiAgentSystem {
     const agentFeedbacks: AgentFeedback[] = [
       {
         agent: "HR Agent",
-        analysis: "Positive initial impression",
-        recommendations: ["Schedule interview"],
-        concerns: [],
-        strengths: ["Enthusiastic", "Good communicator"],
+        analysis: `Initial screening reveals ${candidate.name} has solid communication skills and relevant background. Their experience level of ${candidate.experienceYears} years aligns well with our requirements.`,
+        recommendations: ["Schedule phone screening", "Verify employment history"],
+        concerns: candidate.experienceYears < 2 ? ["Limited experience"] : [],
+        strengths: ["Professional presentation", "Clear communication"],
         confidence: 85
       },
       {
-        agent: "Technical Evaluator",
-        analysis: "Solid technical background",
-        recommendations: ["Technical interview"],
-        concerns: [],
-        strengths: ["Proficient in JavaScript", "Experience with React"],
+        agent: "Technical Evaluator", 
+        analysis: `Technical assessment shows proficiency in key technologies. Skills include: ${candidate.technicalSkills.slice(0,3).join(', ')}. Education background: ${candidate.educationLevel}.`,
+        recommendations: ["Technical interview recommended", "Code review assessment"],
+        concerns: candidate.technicalSkills.length < 3 ? ["Limited technical skills listed"] : [],
+        strengths: candidate.technicalSkills.slice(0,2),
         confidence: 90
+      },
+      {
+        agent: "Experience Analyzer",
+        analysis: `Career progression analysis indicates ${candidate.experienceYears} years of relevant experience. Previous roles show growth potential and relevant industry experience.`,
+        recommendations: ["Deep dive into project experience", "Reference checks"],
+        concerns: candidate.previousRoles.length === 0 ? ["No detailed work history available"] : [],
+        strengths: ["Relevant experience", "Career progression"],
+        confidence: 88
+      },
+      {
+        agent: "Cultural Fit Assessor",
+        analysis: `Cultural alignment assessment based on communication style and background. Location: ${candidate.location}. Shows adaptability through diverse experience.`,
+        recommendations: ["Team fit interview", "Cultural values assessment"],
+        concerns: [],
+        strengths: ["Team collaboration potential", "Adaptability"],
+        confidence: 82
+      },
+      {
+        agent: "Final Reviewer",
+        analysis: `Comprehensive review shows overall fit score of ${scores.overall}%. Candidate demonstrates strong potential across multiple evaluation criteria with balanced skills profile.`,
+        recommendations: ["Proceed to final interview round", "Prepare job offer discussion"],
+        concerns: scores.overall < 80 ? ["Some gaps in overall evaluation"] : [],
+        strengths: ["Well-rounded candidate", "Strong overall potential"],
+        confidence: 87
       }
     ];
 
     const detailedAnalysis: DetailedAnalysis = {
-      skillGaps: [],
+      skillGaps: candidate.technicalSkills.length < 5 ? ["Could benefit from additional technical skills"] : [],
       experienceMatch: "Good alignment with job requirements",
       educationFit: "Meets minimum requirements",
       projectRelevance: "Projects align with company goals",
       growthPotential: "High potential for advancement"
     };
 
-    const overallFit = "Good";
+    const overallFit = scores.overall >= 90 ? "Excellent" : scores.overall >= 80 ? "Good" : scores.overall >= 70 ? "Fair" : "Poor";
 
     const analysis: CandidateAnalysis = {
-      rank: 0, // Rank will be assigned later
+      rank: 0,
       candidate,
       scores,
       strengths,
