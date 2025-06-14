@@ -21,13 +21,44 @@ class LangGraphMultiAgentSystem {
         const resume = uploadedResumes[i];
         console.log(`Processing resume ${i + 1}: ${resume.name}`);
         
-        const candidate = await SmartCandidateExtractor.extractCandidate(resume);
-        console.log('Extracted candidate:', candidate);
-        
-        const analysis = await this.analyzeCandidate(candidate, jobDescription);
-        analysis.rank = i + 1;
-        
-        analyses.push(analysis);
+        try {
+          const candidate = await SmartCandidateExtractor.extractCandidate(resume);
+          console.log('Extracted candidate:', candidate);
+          
+          const analysis = await this.analyzeCandidate(candidate, jobDescription);
+          analysis.rank = i + 1;
+          
+          analyses.push(analysis);
+        } catch (candidateError) {
+          console.error(`Error processing candidate ${i + 1}:`, candidateError);
+          
+          // Create a fallback candidate with basic info
+          const fallbackCandidate: Candidate = {
+            name: resume.name || `Candidate ${i + 1}`,
+            email: "Error parsing resume",
+            phone: "Not provided",
+            location: "Not provided",
+            skills: [],
+            technicalSkills: [],
+            softSkills: [],
+            experience: [],
+            education: [],
+            educationLevel: "Not provided",
+            certifications: [],
+            languages: [],
+            projects: [],
+            achievements: [],
+            summary: "Resume parsing failed",
+            keywords: [],
+            linkedIn: "Not provided",
+            github: "Not provided",
+            experienceYears: 0,
+          };
+          
+          const fallbackAnalysis = await this.analyzeCandidate(fallbackCandidate, jobDescription);
+          fallbackAnalysis.rank = i + 1;
+          analyses.push(fallbackAnalysis);
+        }
       }
       
       const sortedAnalyses = analyses.sort((a, b) => b.scores.overall - a.scores.overall);
