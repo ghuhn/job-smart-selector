@@ -1,52 +1,113 @@
-
 import { AggressiveTextCleaner } from './textCleaner';
 import { SmartExtractor } from './smartExtractor';
 import { Candidate } from './multiAgentSystem';
+import { SimpleResumeParser, SimpleParsedCandidate } from './simpleResumeParser';
 
 export class SmartCandidateExtractor {
   static async extractCandidate(resume: any): Promise<Candidate> {
-    console.log('=== ENHANCED CANDIDATE EXTRACTION ===');
+    console.log('=== ENHANCED CANDIDATE EXTRACTION WITH DOUBLE PARSING ===');
     console.log('Resume file:', resume.name);
-    
+
+    // 1. Original clean/extraction logic (existing)
     const content = resume.content || '';
-    console.log('Raw content length:', content.length);
-    console.log('Raw content sample:', content.substring(0, 500));
-    
     const cleanedText = AggressiveTextCleaner.clean(content);
     const words = AggressiveTextCleaner.extractReadableWords(content);
     const sentences = AggressiveTextCleaner.extractSentences(content);
     const lines = AggressiveTextCleaner.extractLines(content);
-    
-    console.log('Cleaned text length:', cleanedText.length);
-    console.log('Extracted words count:', words.length);
-    console.log('Sample words:', words.slice(0, 50));
-    console.log('Extracted sentences count:', sentences.length);
-    console.log('Sample sentences:', sentences.slice(0, 5));
-    console.log('Extracted lines count:', lines.length);
-    console.log('Sample lines:', lines.slice(0, 10));
-    
-    // Extract basic information using enhanced methods
-    const name = SmartExtractor.extractName(words, sentences, lines, resume.name);
-    const email = SmartExtractor.extractEmail(words, sentences, lines);
-    const phone = SmartExtractor.extractPhone(words, sentences, lines);
-    const location = SmartExtractor.extractLocation(words, sentences, lines);
-    const skills = SmartExtractor.extractSkills(words, sentences, lines);
-    const experience = SmartExtractor.extractExperience(words, sentences, lines);
-    const education = SmartExtractor.extractEducation(words, sentences, lines);
-    const languages = SmartExtractor.extractLanguages(words, sentences, lines);
-    
-    // Separate technical and soft skills
-    const technicalKeywords = ['JavaScript', 'Python', 'Java', 'React', 'Node', 'SQL', 'HTML', 'CSS', 'AWS', 'Docker', 'Git', 'Angular', 'Vue'];
-    const softKeywords = ['Leadership', 'Communication', 'Management', 'Teamwork', 'Problem', 'Analysis'];
-    
-    const technicalSkills = skills.filter(skill => 
-      technicalKeywords.some(tech => skill.toLowerCase().includes(tech.toLowerCase()))
+
+    // LLM logic
+    const llmName = SmartExtractor.extractName(words, sentences, lines, resume.name);
+    const llmEmail = SmartExtractor.extractEmail(words, sentences, lines);
+    const llmPhone = SmartExtractor.extractPhone(words, sentences, lines);
+    const llmLocation = SmartExtractor.extractLocation(words, sentences, lines);
+    const llmSkills = SmartExtractor.extractSkills(words, sentences, lines);
+    const llmExperience = SmartExtractor.extractExperience(words, sentences, lines);
+    const llmEducation = SmartExtractor.extractEducation(words, sentences, lines);
+    const llmLanguages = SmartExtractor.extractLanguages(words, sentences, lines);
+
+    // 2. NEW: Classic parser logic
+    const classicParsed: SimpleParsedCandidate = SimpleResumeParser.parse(content);
+
+    function selectField(llmVal: string, classicVal: string, fieldName: string) {
+      // Prefer value that is nonempty and NOT 'Not provided'/'Name Not Found'
+      if (
+        classicVal &&
+        classicVal !== 'Not provided' &&
+        classicVal !== 'Name Not Found'
+      ) {
+        // If both exist and disagree significantly, log it
+        if (
+          llmVal &&
+          llmVal !== 'Not provided' &&
+          llmVal !== classicVal &&
+          Math.abs((classicVal.length ?? 0) - (llmVal.length ?? 0)) > 5
+        ) {
+          console.log(
+            `Cross-check mismatch on ${fieldName}: [LLM] ${llmVal} vs [Classic] ${classicVal}`
+          );
+          return `${classicVal} (${llmVal})`;
+        }
+        return classicVal;
+      }
+      return llmVal && llmVal !== 'Not provided' ? llmVal : '';
+    }
+
+    function selectList(llmArr: string[], classicArr: string[]): string[] {
+      // Merge results and deduplicate
+      if (classicArr.length === 0) return llmArr;
+      if (llmArr.length === 0) return classicArr;
+      return Array.from(new Set([...classicArr, ...llmArr])).slice(0, 10);
+    }
+
+    // --- Cross-check/merge results ---
+    const name = selectField(llmName, classicParsed.name, 'name');
+    const email = selectField(llmEmail, classicParsed.email, 'email');
+    const phone = selectField(llmPhone, classicParsed.phone, 'phone');
+    const location = llmLocation; // Classic version doesn't extract location robustly
+    const skills = selectList(llmSkills, classicParsed.skills);
+    const experience = {
+      text: selectField(llmExperience.text, classicParsed.experience, 'experience'),
+      years: llmExperience.years,
+    };
+    const education = {
+      text: selectField(llmEducation.text, classicParsed.education, 'education'),
+      level: llmEducation.level,
+    };
+    const languages = selectList(llmLanguages, classicParsed.languages);
+
+    // --- Rest of the candidate fields (keep as before) ---
+    const technicalKeywords = [
+      'JavaScript',
+      'Python',
+      'Java',
+      'React',
+      'Node',
+      'SQL',
+      'HTML',
+      'CSS',
+      'AWS',
+      'Docker',
+      'Git',
+      'Angular',
+      'Vue',
+    ];
+    const softKeywords = [
+      'Leadership',
+      'Communication',
+      'Management',
+      'Teamwork',
+      'Problem',
+      'Analysis',
+    ];
+
+    const technicalSkills = skills.filter((skill) =>
+      technicalKeywords.some((tech) => skill.toLowerCase().includes(tech.toLowerCase()))
     );
-    
-    const softSkills = skills.filter(skill => 
-      softKeywords.some(soft => skill.toLowerCase().includes(soft.toLowerCase()))
+
+    const softSkills = skills.filter((skill) =>
+      softKeywords.some((soft) => skill.toLowerCase().includes(soft.toLowerCase()))
     );
-    
+
     console.log('=== EXTRACTION RESULTS ===');
     console.log('Name:', name);
     console.log('Email:', email);
@@ -57,7 +118,7 @@ export class SmartCandidateExtractor {
     console.log('Languages:', languages);
     console.log('Technical Skills:', technicalSkills);
     console.log('Soft Skills:', softSkills);
-    
+
     const candidate: Candidate = {
       name,
       email,
@@ -80,10 +141,10 @@ export class SmartCandidateExtractor {
       linkedIn: this.extractLinkedIn(words, lines),
       github: this.extractGitHub(words, lines)
     };
-    
-    console.log('=== FINAL CANDIDATE ===');
+
+    console.log('=== FINAL CROSS-CHECKED CANDIDATE ===');
     console.log(candidate);
-    
+
     return candidate;
   }
 
