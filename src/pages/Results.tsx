@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -319,6 +318,50 @@ const Results = () => {
                     <p><strong>Experience:</strong> {candidates[selectedCandidate].candidate.experience}</p>
                     <p><strong>Education:</strong> {candidates[selectedCandidate].candidate.education}</p>
                     <p><strong>Languages:</strong> {candidates[selectedCandidate].candidate.languages.join(', ')}</p>
+                  </div>
+                </div>
+
+                {/* Show cross-check parsing details */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Field Extraction Debug</h3>
+                  <div className="overflow-auto rounded shadow bg-gray-50 border border-gray-200 p-4 mb-4">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr>
+                          <th className="p-2 text-left font-bold text-gray-700">Field</th>
+                          <th className="p-2 text-left font-bold text-blue-700">LLM Parser</th>
+                          <th className="p-2 text-left font-bold text-purple-700">Classic Parser</th>
+                          <th className="p-2 text-left font-bold text-green-700">Selected</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const cd = candidates[selectedCandidate].candidate.parsingDebug;
+                          if (!cd) return null;
+                          // Helper util to render/compare value arrays and strings
+                          const showVal = (v: string|string[]|undefined) =>
+                            Array.isArray(v) ? v.join(', ') : (v || '—');
+                          // Fields to show
+                          const FIELDS = [
+                            {key: 'name', label: 'Name'},
+                            {key: 'email', label: 'Email'},
+                            {key: 'phone', label: 'Phone'},
+                            {key: 'skills', label: 'Skills'},
+                            {key: 'languages', label: 'Languages'},
+                            {key: 'education', label: 'Education'},
+                            {key: 'experience', label: 'Experience'},
+                          ] as const;
+                          return FIELDS.map(({key, label}) => (
+                            <tr key={key}>
+                              <td className="p-2 font-bold">{label}</td>
+                              <td className="p-2 text-blue-900">{showVal(cd.llm[key])}</td>
+                              <td className="p-2 text-purple-900">{showVal(cd.classic[key])}</td>
+                              <td className="p-2 text-green-900">{showVal((candidates[selectedCandidate].candidate as any)[key])}</td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 

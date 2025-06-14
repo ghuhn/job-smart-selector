@@ -25,17 +25,15 @@ export class SmartCandidateExtractor {
     const llmEducation = SmartExtractor.extractEducation(words, sentences, lines);
     const llmLanguages = SmartExtractor.extractLanguages(words, sentences, lines);
 
-    // 2. NEW: Classic parser logic
+    // 2. Classic parser logic
     const classicParsed: SimpleParsedCandidate = SimpleResumeParser.parse(content);
 
     function selectField(llmVal: string, classicVal: string, fieldName: string) {
-      // Prefer value that is nonempty and NOT 'Not provided'/'Name Not Found'
       if (
         classicVal &&
         classicVal !== 'Not provided' &&
         classicVal !== 'Name Not Found'
       ) {
-        // If both exist and disagree significantly, log it
         if (
           llmVal &&
           llmVal !== 'Not provided' &&
@@ -53,7 +51,6 @@ export class SmartCandidateExtractor {
     }
 
     function selectList(llmArr: string[], classicArr: string[]): string[] {
-      // Merge results and deduplicate
       if (classicArr.length === 0) return llmArr;
       if (llmArr.length === 0) return classicArr;
       return Array.from(new Set([...classicArr, ...llmArr])).slice(0, 10);
@@ -63,7 +60,7 @@ export class SmartCandidateExtractor {
     const name = selectField(llmName, classicParsed.name, 'name');
     const email = selectField(llmEmail, classicParsed.email, 'email');
     const phone = selectField(llmPhone, classicParsed.phone, 'phone');
-    const location = llmLocation; // Classic version doesn't extract location robustly
+    const location = llmLocation;
     const skills = selectList(llmSkills, classicParsed.skills);
     const experience = {
       text: selectField(llmExperience.text, classicParsed.experience, 'experience'),
@@ -74,6 +71,29 @@ export class SmartCandidateExtractor {
       level: llmEducation.level,
     };
     const languages = selectList(llmLanguages, classicParsed.languages);
+
+    // Keep BOTH sets of extracted values in Candidate for debug display
+    const parsingDebug = {
+      llm: {
+        name: llmName,
+        email: llmEmail,
+        phone: llmPhone,
+        location: llmLocation,
+        skills: llmSkills,
+        experience: llmExperience.text,
+        education: llmEducation.text,
+        languages: llmLanguages
+      },
+      classic: {
+        name: classicParsed.name,
+        email: classicParsed.email,
+        phone: classicParsed.phone,
+        skills: classicParsed.skills,
+        experience: classicParsed.experience,
+        education: classicParsed.education,
+        languages: classicParsed.languages
+      }
+    };
 
     // --- Rest of the candidate fields (keep as before) ---
     const technicalKeywords = [
@@ -139,7 +159,8 @@ export class SmartCandidateExtractor {
       summary: this.extractSummary(sentences, lines),
       keywords: [...technicalSkills, ...softSkills].slice(0, 10),
       linkedIn: this.extractLinkedIn(words, lines),
-      github: this.extractGitHub(words, lines)
+      github: this.extractGitHub(words, lines),
+      parsingDebug
     };
 
     console.log('=== FINAL CROSS-CHECKED CANDIDATE ===');

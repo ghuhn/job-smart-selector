@@ -21,6 +21,27 @@ interface Candidate {
   keywords: string[];
   linkedIn: string;
   github: string;
+  parsingDebug?: {
+    llm: {
+      name: string;
+      email: string;
+      phone: string;
+      location: string;
+      skills: string[];
+      experience: string;
+      education: string;
+      languages: string[];
+    };
+    classic: {
+      name: string;
+      email: string;
+      phone: string;
+      skills: string[];
+      experience: string;
+      education: string;
+      languages: string[];
+    };
+  };
 }
 
 interface Scores {
