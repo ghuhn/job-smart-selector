@@ -10,11 +10,12 @@ import SummaryCards from "@/components/results/SummaryCards";
 import CandidateList from "@/components/results/CandidateList";
 import CandidateDetail from "@/components/results/CandidateDetail";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Results = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const Results = () => {
   const [candidates, setCandidates] = useState<CandidateAnalysis[]>([]);
   const [jobDescription, setJobDescription] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFormat, setSelectedFormat] = useState<'txt' | 'csv' | 'json'>('txt');
 
   useEffect(() => {
     loadResults();
@@ -283,7 +285,7 @@ const Results = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 items-center">
               <Button 
                 onClick={() => handleDownload('topN')}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -292,27 +294,26 @@ const Results = () => {
                 Top {candidates.length} Summary
               </Button>
               
-              <div className="flex items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="flex items-center">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Complete Analysis Report
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-white border shadow-lg z-50">
-                    <DropdownMenuItem onClick={() => handleDownload('detailed', undefined, 'txt')}>
-                      Download as TXT
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('detailed', undefined, 'csv')}>
-                      Download as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('detailed', undefined, 'json')}>
-                      Download as JSON
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={() => handleDownload('detailed', undefined, selectedFormat)}
+                  variant="outline"
+                  className="flex items-center"
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Complete Analysis Report ({selectedFormat.toUpperCase()})
+                </Button>
+                
+                <Select value={selectedFormat} onValueChange={(value: 'txt' | 'csv' | 'json') => setSelectedFormat(value)}>
+                  <SelectTrigger className="w-20 h-10">
+                    <ChevronDown className="h-4 w-4" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg z-50">
+                    <SelectItem value="txt">TXT</SelectItem>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="json">JSON</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
