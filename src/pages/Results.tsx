@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Download, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { CandidateAnalysis } from "@/utils/multiAgentSystem";
+import type { CandidateAnalysis, ExperienceEntry, EducationEntry } from "@/types/candidates";
 import ResultsHeader from "@/components/results/ResultsHeader";
 import SummaryCards from "@/components/results/SummaryCards";
 import CandidateList from "@/components/results/CandidateList";
@@ -92,8 +92,8 @@ const Results = () => {
     let content = '';
     const topN = jobDescription.topNCandidates || '3';
     
-    const formatExperience = (exp: any) => exp.map((e:any) => `${e.role} at ${e.company} (${e.duration})\n${e.description}`).join('\n\n') || 'Not provided';
-    const formatEducation = (edu: any) => edu.map((e:any) => `${e.degree} from ${e.institution} (${e.years})`).join('\n') || 'Not provided';
+    const formatExperience = (exp: ExperienceEntry[]) => exp.map((e) => `${e.role} at ${e.company} (${e.duration})\n${e.description}`).join('\n\n') || 'Not provided';
+    const formatEducation = (edu: EducationEntry[]) => edu.map((e) => `${e.degree} from ${e.institution} (${e.years})`).join('\n') || 'Not provided';
 
     if (type === 'topN') {
       filename = `top-${topN}-candidates-summary.txt`;
