@@ -111,7 +111,7 @@ class LangGraphMultiAgentSystem {
       
     } catch (error) {
       console.error('Error in multi-agent processing:', error);
-      return [];
+      throw error;
     }
   }
 

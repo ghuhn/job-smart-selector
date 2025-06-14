@@ -104,9 +104,23 @@ const Processing = () => {
         navigate('/results');
       }, 2000);
 
-    } catch (error) {
-      console.error('Processing error:', error);
-      setError('An error occurred during processing. Please try again.');
+    } catch (err) {
+      console.error('Processing error:', err);
+      
+      let errorMessage = 'An unknown error occurred during processing. Please try again.';
+      const error: any = err; 
+
+      if (error && error.value && typeof error.value.message === 'string') {
+        if (error.value.message.includes('404')) {
+          errorMessage = 'The resume parsing service could not be reached (Error 404). The service might be temporarily unavailable. Please try again later.';
+        } else {
+          errorMessage = `An error occurred: ${error.value.message}. Please check the details and try again.`;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = `An error occurred: ${error.message}. Please check the details and try again.`;
+      }
+      
+      setError(errorMessage);
       setIsProcessing(false);
     }
   };
