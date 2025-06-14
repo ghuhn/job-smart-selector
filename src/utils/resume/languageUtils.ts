@@ -20,15 +20,26 @@ export class LanguageUtils {
     ];
 
     static parseLanguages(languageText: string): string[] {
-        if (!languageText || languageText === "Not provided") return [];
+        console.log('Parsing languages from text:', languageText);
+        
+        if (!languageText || languageText === "Not provided" || languageText.trim() === '') {
+            console.log('No language text provided');
+            return [];
+        }
         
         const languages: string[] = [];
-        const parts = languageText.split(',');
+        
+        // Split by common separators
+        const parts = languageText.split(/[,;|&\n]+/);
+        console.log('Split language parts:', parts);
         
         for (const part of parts) {
             const trimmedPart = part.trim();
+            if (!trimmedPart) continue;
             
-            // Check if this part contains a language
+            console.log('Processing language part:', trimmedPart);
+            
+            // Check if this part contains a language - use case insensitive matching
             for (const language of this.COMMON_LANGUAGES) {
                 if (new RegExp(`\\b${language}\\b`, 'i').test(trimmedPart)) {
                     // Extract proficiency if present
@@ -43,12 +54,28 @@ export class LanguageUtils {
                     const languageEntry = `${language}${proficiency}`;
                     if (!languages.includes(languageEntry)) {
                         languages.push(languageEntry);
+                        console.log('Added language:', languageEntry);
                     }
                     break;
                 }
             }
         }
         
+        // If no languages found using strict matching, try a more lenient approach
+        if (languages.length === 0) {
+            console.log('No languages found with strict matching, trying lenient approach');
+            // Split and clean each part, then add if it looks like a language
+            const cleanedParts = parts.map(p => p.trim()).filter(p => p.length > 0);
+            for (const part of cleanedParts) {
+                // If it's a single word or two words, likely a language
+                if (part.split(' ').length <= 2 && part.length >= 3) {
+                    languages.push(part);
+                    console.log('Added language (lenient):', part);
+                }
+            }
+        }
+        
+        console.log('Final parsed languages:', languages);
         return languages;
     }
 
