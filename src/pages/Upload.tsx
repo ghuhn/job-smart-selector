@@ -39,13 +39,15 @@ const Upload = () => {
     const validFiles = newFiles.filter(file => 
       file.type === 'application/pdf' || 
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.type === 'application/msword'
+      file.type === 'application/msword' ||
+      file.name.toLowerCase().endsWith('.docx') ||
+      file.name.toLowerCase().endsWith('.doc')
     );
     
     if (validFiles.length !== newFiles.length) {
       toast({
         title: "Invalid files detected",
-        description: "Only PDF and DOCX files are supported",
+        description: "Only PDF, DOC, and DOCX files are supported",
         variant: "destructive"
       });
     }
@@ -82,7 +84,17 @@ const Upload = () => {
       reader.onerror = (e) => {
         reject(new Error('Failed to read file'));
       };
-      reader.readAsText(file);
+      
+      // Handle different file types
+      if (file.type === 'application/pdf') {
+        reader.readAsText(file);
+      } else if (file.type.includes('word') || file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+        // For Word documents, we'll read as text for now
+        // In production, you'd want to use a proper Word document parser
+        reader.readAsText(file);
+      } else {
+        reader.readAsText(file);
+      }
     });
   };
 
@@ -204,7 +216,7 @@ Location: San Francisco, CA`,
                 Drag and drop your files here
               </h3>
               <p className="text-gray-600 mb-4">or click to browse</p>
-              <p className="text-sm text-gray-500">Supports PDF and DOCX files (up to 10MB each)</p>
+              <p className="text-sm text-gray-500">Supports PDF, DOC, and DOCX files (up to 10MB each)</p>
               
               <input
                 ref={fileInputRef}
