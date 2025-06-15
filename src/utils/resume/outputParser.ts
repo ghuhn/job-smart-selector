@@ -86,25 +86,11 @@ export class OutputParser {
                     educationBuffer.push(content);
                     break;
                 case 'experience':
-                    const expMatch = content.match(/-?\s*(.*?)\s*at\s*(.*?)\s*\(([^)]+)\)/);
-                    if (expMatch) {
-                        const expEntry = {
-                            role: expMatch[1].trim(),
-                            company: expMatch[2].trim(),
-                            duration: expMatch[3].trim(),
-                            description: '',
-                        };
-                        candidate.experience?.push(expEntry);
-                        console.log('Added experience entry:', expEntry);
-                    } else if (candidate.experience && candidate.experience.length > 0 && !content.startsWith('-')) {
-                        const lastExperience = candidate.experience[candidate.experience.length - 1];
-                        lastExperience.description = (lastExperience.description + ' ' + content).trim();
-                        console.log('Updated last experience description');
-                    }
+                    this.parseExperienceEntry(content, candidate);
                     break;
                 case 'technical_skills':
                     if (candidate.technicalSkills) {
-                        candidate.technicalSkills = content.split(',').map(s => s.trim()).filter(Boolean);
+                        candidate.technicalSkills = this.parseSkillsList(content);
                         // Also add to general skills array
                         candidate.skills = [...(candidate.skills || []), ...candidate.technicalSkills];
                         console.log('Parsed technical skills:', candidate.technicalSkills);
@@ -112,13 +98,13 @@ export class OutputParser {
                     break;
                 case 'soft_skills':
                     if (candidate.softSkills) {
-                        candidate.softSkills = content.split(',').map(s => s.trim()).filter(Boolean);
+                        candidate.softSkills = this.parseSkillsList(content);
                         console.log('Parsed soft skills:', candidate.softSkills);
                     }
                     break;
                 case 'certifications':
                     if (candidate.certifications) {
-                        candidate.certifications = content.split(',').map(s => s.trim()).filter(Boolean);
+                        candidate.certifications = this.parseSkillsList(content);
                         console.log('Parsed certifications:', candidate.certifications);
                     }
                     break;
@@ -127,24 +113,10 @@ export class OutputParser {
                     languageBuffer.push(content);
                     break;
                 case 'projects':
-                    const projectMatch = content.match(/-?\s*(.*?):\s*(.*?)\s*\(([^)]+)\)/);
-                    if (projectMatch) {
-                        const projectEntry = {
-                            name: projectMatch[1].trim(),
-                            description: projectMatch[2].trim(),
-                            technologies: projectMatch[3].split(',').map(t => t.trim())
-                        };
-                        candidate.projects?.push(projectEntry);
-                        console.log('Added project entry:', projectEntry);
-                    }
+                    this.parseProjectEntry(content, candidate);
                     break;
                 case 'achievements':
-                    if (content.startsWith('-') || content.startsWith('•')) {
-                        candidate.achievements?.push(content.replace(/^[-•]\s*/, '').trim());
-                    } else {
-                        candidate.achievements?.push(content);
-                    }
-                    console.log('Added achievement:', content);
+                    this.parseAchievementEntry(content, candidate);
                     break;
             }
         }
@@ -162,23 +134,120 @@ export class OutputParser {
         return candidate;
     }
 
+    private static parseSkillsList(content: string): string[] {
+        return content.split(/[,;|&\n]/).map(s => s.trim()).filter(s => s.length > 0 && !s.toLowerCase().includes('not provided'));
+    }
+
+    private static parseExperienceEntry(content: string, candidate: ParsedCandidate) {
+        // Handle multiple experience entry formats
+        const patterns = [
+            // Pattern: Title at Company (Duration)
+            /^-?\s*(.*?)\s*at\s*(.*?)\s*\(([^)]+)\)/,
+            // Pattern: Company: Title (Duration)
+            /^-?\s*(.*?):\s*(.*?)\s*\(([^)]+)\)/,
+            // Pattern: Title | Company | Duration
+            /^-?\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*)/,
+            // Pattern: Company - Title - Duration
+            /^-?\s*(.*?)\s*-\s*(.*?)\s*-\s*(.*)/
+        ];
+
+        for (const pattern of patterns) {
+            const match = content.match(pattern);
+            if (match) {
+                const expEntry = {
+                    role: match[1].trim(),
+                    company: match[2].trim(),
+                    duration: match[3].trim(),
+                    description: '',
+                };
+                
+                // Handle different pattern interpretations
+                if (pattern.source.includes('Company:')) {
+                    // Swap role and company for Company: Title format
+                    expEntry.company = match[1].trim();
+                    expEntry.role = match[2].trim();
+                }
+                
+                candidate.experience?.push(expEntry);
+                console.log('Added experience entry:', expEntry);
+                return;
+            }
+        }
+
+        // If no pattern matched, check if it's a description for the last experience
+        if (candidate.experience && candidate.experience.length > 0 && !content.startsWith('-')) {
+            const lastExperience = candidate.experience[candidate.experience.length - 1];
+            lastExperience.description = (lastExperience.description + ' ' + content).trim();
+            console.log('Updated last experience description');
+        }
+    }
+
+    private static parseProjectEntry(content: string, candidate: ParsedCandidate) {
+        const patterns = [
+            // Pattern: Project Name: Description (Technologies)
+            /^-?\s*(.*?):\s*(.*?)\s*\(([^)]+)\)/,
+            // Pattern: Project Name - Description (Technologies)
+            /^-?\s*(.*?)\s*-\s*(.*?)\s*\(([^)]+)\)/,
+            // Pattern: Project Name: Description
+            /^-?\s*(.*?):\s*(.*)/
+        ];
+
+        for (const pattern of patterns) {
+            const match = content.match(pattern);
+            if (match) {
+                const projectEntry = {
+                    name: match[1].trim(),
+                    description: match[2].trim(),
+                    technologies: match[3] ? match[3].split(',').map(t => t.trim()) : []
+                };
+                candidate.projects?.push(projectEntry);
+                console.log('Added project entry:', projectEntry);
+                return;
+            }
+        }
+
+        // Simple fallback for project entries without specific format
+        if (content.startsWith('-') || content.startsWith('•')) {
+            const cleanContent = content.replace(/^[-•]\s*/, '').trim();
+            const projectEntry = {
+                name: cleanContent.split(':')[0] || cleanContent,
+                description: cleanContent.split(':')[1] || cleanContent,
+                technologies: []
+            };
+            candidate.projects?.push(projectEntry);
+            console.log('Added project entry (fallback):', projectEntry);
+        }
+    }
+
+    private static parseAchievementEntry(content: string, candidate: ParsedCandidate) {
+        if (content.startsWith('-') || content.startsWith('•')) {
+            candidate.achievements?.push(content.replace(/^[-•]\s*/, '').trim());
+        } else {
+            candidate.achievements?.push(content);
+        }
+        console.log('Added achievement:', content);
+    }
+
     private static processEducationBuffer(buffer: string[], candidate: ParsedCandidate) {
         console.log('Processing education buffer:', buffer);
-        const allEducationText = buffer.join(' ');
         
         for (const line of buffer) {
             if (line.trim() === '' || line.toLowerCase().includes('not provided')) continue;
             
-            // Try multiple education parsing patterns
+            // Enhanced education parsing patterns
             const patterns = [
+                // Pattern: Degree, Institution (Year) CGPA
+                /^-?\s*([^,]+),\s*([^(]+)\s*\(([^)]+)\)\s*([\d.]+)/,
                 // Pattern: Degree, Institution (Year)
                 /^-?\s*([^,]+),\s*([^(]+)\s*\(([^)]+)\)/,
-                // Pattern: Degree from Institution (Year)
-                /^-?\s*(.+?)\s+from\s+(.+?)\s*\(([^)]+)\)/i,
                 // Pattern: Institution: Degree (Year)
                 /^-?\s*([^:]+):\s*([^(]+)\s*\(([^)]+)\)/,
-                // Pattern: Degree - Institution - Year
+                // Pattern: Degree from Institution (Year)
+                /^-?\s*(.+?)\s+from\s+(.+?)\s*\(([^)]+)\)/i,
+                // Pattern: Institution - Degree - Year
                 /^-?\s*([^-]+)\s*-\s*([^-]+)\s*-\s*(.+)/,
+                // Pattern: Degree | Institution | Year
+                /^-?\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(.+)/,
                 // Pattern: Just degree and institution without parentheses
                 /^-?\s*([^,]+),\s*(.+)/
             ];
@@ -187,10 +256,22 @@ export class OutputParser {
             for (const pattern of patterns) {
                 const match = line.match(pattern);
                 if (match) {
+                    let degree = match[1].trim();
+                    let institution = match[2].trim();
+                    let years = match[3] ? match[3].trim() : 'Not specified';
+                    let gpa = match[4] ? match[4].trim() : '';
+                    
+                    // Handle Institution: Degree format
+                    if (pattern.source.includes(':')) {
+                        const temp = degree;
+                        degree = institution;
+                        institution = temp;
+                    }
+                    
                     const eduEntry = {
-                        degree: match[1].trim(),
-                        institution: match[2].trim(),
-                        years: match[3] ? match[3].trim() : 'Not specified',
+                        degree: degree,
+                        institution: institution,
+                        years: years + (gpa ? ` (CGPA: ${gpa})` : ''),
                     };
                     candidate.education?.push(eduEntry);
                     console.log('Added education entry:', eduEntry);
@@ -199,17 +280,24 @@ export class OutputParser {
                 }
             }
             
-            // If no pattern matched, try to extract what we can
+            // Enhanced fallback parsing
             if (!matched && line.length > 10) {
-                const parts = line.replace(/^-\s*/, '').split(/[,\(\)]/);
-                if (parts.length >= 2) {
+                const cleanLine = line.replace(/^-\s*/, '');
+                
+                // Try to identify common degree keywords
+                const degreeKeywords = ['bachelor', 'master', 'phd', 'diploma', 'certificate', 'btech', 'mtech', 'mba', 'bca', 'mca', 'bsc', 'msc'];
+                const foundDegree = degreeKeywords.find(keyword => cleanLine.toLowerCase().includes(keyword));
+                
+                if (foundDegree) {
+                    // Extract parts more intelligently
+                    const parts = cleanLine.split(/[,\(\)\-|]/);
                     const eduEntry = {
-                        degree: parts[0].trim(),
-                        institution: parts[1].trim(),
-                        years: parts[2] ? parts[2].trim() : 'Not specified',
+                        degree: parts.find(p => p.toLowerCase().includes(foundDegree))?.trim() || parts[0].trim(),
+                        institution: parts.find(p => !p.toLowerCase().includes(foundDegree) && p.length > 3)?.trim() || 'Not specified',
+                        years: parts.find(p => /\d{4}/.test(p))?.trim() || 'Not specified',
                     };
                     candidate.education?.push(eduEntry);
-                    console.log('Added education entry (fallback):', eduEntry);
+                    console.log('Added education entry (enhanced fallback):', eduEntry);
                 }
             }
         }
