@@ -1,5 +1,5 @@
 
-# ResumeAI - Multi-Agent Resume Screener
+# JobDeskAI - Multi-Agent Resume Screener
 
 An enterprise-grade AI-powered resume screening and candidate recommendation system built with React, TypeScript, and Google's Gemini AI.
 
@@ -50,7 +50,7 @@ An enterprise-grade AI-powered resume screening and candidate recommendation sys
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd resume-ai-screener
+cd job-desk-ai-screener
 ```
 
 2. **Install dependencies**

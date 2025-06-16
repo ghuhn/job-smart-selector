@@ -31,9 +31,13 @@ const Index = () => {
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Zap className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">ResumeAI</span>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
+                <Zap className="h-8 w-8 text-white" />
+              </div>
+              <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight">
+                JobDeskAI
+              </span>
             </div>
             <div className="hidden md:flex items-center space-x-6">
               <span className="text-gray-600">Multi-Agent Resume Screener</span>
@@ -45,6 +49,16 @@ const Index = () => {
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
+          <div className="mb-8">
+            <div className="inline-flex items-center space-x-4 p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg mb-6">
+              <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl">
+                <Zap className="h-12 w-12 text-white" />
+              </div>
+              <span className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight">
+                JobDeskAI
+              </span>
+            </div>
+          </div>
           <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
             AI-Powered Resume
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
@@ -111,7 +125,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2024 ResumeAI. Enterprise-grade AI recruitment solution.</p>
+          <p className="text-gray-400">© 2024 JobDeskAI. Enterprise-grade AI recruitment solution.</p>
         </div>
       </footer>
     </div>
