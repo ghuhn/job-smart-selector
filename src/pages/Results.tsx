@@ -30,21 +30,22 @@ const Results = () => {
   }, []);
 
   const loadResults = () => {
-    console.log('Loading results...');
+    console.log('=== LOADING RESULTS - DEBUG INFO ===');
     
     // Load analysis results and job description from localStorage
     const savedResults = localStorage.getItem('analysisResults');
     const savedJobDesc = localStorage.getItem('jobDescription');
     const uploadedResumes = localStorage.getItem('uploadedResumes');
     
-    console.log('Saved results:', savedResults);
-    console.log('Uploaded resumes:', uploadedResumes);
+    console.log('Saved results from localStorage:', savedResults);
+    console.log('Saved job description:', savedJobDesc);
+    console.log('Uploaded resumes data:', uploadedResumes);
     
     if (savedJobDesc) {
       try {
         const jobDesc = JSON.parse(savedJobDesc);
         setJobDescription(jobDesc);
-        console.log('Loaded job description:', jobDesc);
+        console.log('Successfully loaded job description:', jobDesc);
       } catch (error) {
         console.error('Error parsing job description:', error);
       }
@@ -54,15 +55,30 @@ const Results = () => {
       try {
         const results = JSON.parse(savedResults);
         console.log('Parsed analysis results:', results);
+        console.log('Number of candidates found:', results?.length || 0);
         
+        // Log each candidate's basic info for debugging
         if (results && results.length > 0) {
+          results.forEach((candidate, index) => {
+            console.log(`Candidate ${index + 1}:`, {
+              name: candidate?.candidate?.name,
+              email: candidate?.candidate?.email,
+              skills: candidate?.candidate?.technicalSkills?.length || 0,
+              experience: candidate?.candidate?.experienceYears || 0
+            });
+          });
+          
           setCandidates(results);
           setIsLoading(false);
           return;
+        } else {
+          console.warn('Results array is empty or invalid');
         }
       } catch (error) {
         console.error('Error parsing saved results:', error);
       }
+    } else {
+      console.warn('No saved results found in localStorage');
     }
     
     // If no valid results but we have uploaded resumes, redirect back to processing
@@ -269,7 +285,7 @@ const Results = () => {
           >
             <div className="flex items-center space-x-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
               <Home className="h-6 w-6" />
-              <span>ResumeAI - Analysis Results</span>
+              <span>JobDeskAI - Analysis Results</span>
             </div>
           </Button>
         </div>
