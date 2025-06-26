@@ -59,13 +59,36 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("cultural_agent", this.culturalAgentNode.bind(this));
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
-    // Create the workflow flow using START and END
-    this.workflow.addEdge(START, "hr_agent");
-    this.workflow.addEdge("hr_agent", "technical_agent");
-    this.workflow.addEdge("technical_agent", "experience_agent");
-    this.workflow.addEdge("experience_agent", "cultural_agent");
-    this.workflow.addEdge("cultural_agent", "final_reviewer");
-    this.workflow.addEdge("final_reviewer", END);
+    // Define the workflow using conditional edges and entry point
+    this.workflow.addConditionalEdges(
+      START,
+      () => "hr_agent"
+    );
+    
+    this.workflow.addConditionalEdges(
+      "hr_agent",
+      () => "technical_agent"
+    );
+    
+    this.workflow.addConditionalEdges(
+      "technical_agent", 
+      () => "experience_agent"
+    );
+    
+    this.workflow.addConditionalEdges(
+      "experience_agent",
+      () => "cultural_agent"
+    );
+    
+    this.workflow.addConditionalEdges(
+      "cultural_agent",
+      () => "final_reviewer"
+    );
+    
+    this.workflow.addConditionalEdges(
+      "final_reviewer",
+      () => END
+    );
   }
 
   private async hrAgentNode(state: AgentState): Promise<Partial<AgentState>> {
