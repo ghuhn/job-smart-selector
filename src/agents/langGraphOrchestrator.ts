@@ -59,13 +59,15 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("cultural_agent", this.culturalAgentNode.bind(this));
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
-    // Use START and END constants correctly with custom node names
-    this.workflow.addEdge(START, "hr_agent");
+    // Set entry point and create sequential flow
+    this.workflow.setEntryPoint("hr_agent");
+    this.workflow.setFinishPoint("final_reviewer");
+    
+    // Add edges between nodes using node names
     this.workflow.addEdge("hr_agent", "technical_agent");
     this.workflow.addEdge("technical_agent", "experience_agent");
     this.workflow.addEdge("experience_agent", "cultural_agent");
     this.workflow.addEdge("cultural_agent", "final_reviewer");
-    this.workflow.addEdge("final_reviewer", END);
   }
 
   private async hrAgentNode(state: AgentState): Promise<Partial<AgentState>> {
