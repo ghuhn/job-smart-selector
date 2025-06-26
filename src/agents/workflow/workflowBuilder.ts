@@ -18,12 +18,12 @@ export class WorkflowBuilder {
     workflow.addNode("cultural_agent", culturalAgentNode);
     workflow.addNode("final_reviewer", finalReviewerNode);
 
-    // Define sequential workflow using edges
-    workflow.addEdge(START, "hr_agent");
-    workflow.addEdge("hr_agent", "technical_agent");
-    workflow.addEdge("technical_agent", "experience_agent");
-    workflow.addEdge("experience_agent", "cultural_agent");
-    workflow.addEdge("cultural_agent", "final_reviewer");
-    workflow.addEdge("final_reviewer", END);
+    // Define sequential workflow using edges - cast node names to any to bypass strict typing
+    workflow.addEdge(START as any, "hr_agent" as any);
+    workflow.addEdge("hr_agent" as any, "technical_agent" as any);
+    workflow.addEdge("technical_agent" as any, "experience_agent" as any);
+    workflow.addEdge("experience_agent" as any, "cultural_agent" as any);
+    workflow.addEdge("cultural_agent" as any, "final_reviewer" as any);
+    workflow.addEdge("final_reviewer" as any, END as any);
   }
 }
