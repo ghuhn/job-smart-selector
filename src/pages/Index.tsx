@@ -5,8 +5,6 @@ import { FileUp, Users, Search, Download, Zap, Award } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  console.log("Index page is rendering...");
-  
   const navigate = useNavigate();
 
   const features = [
