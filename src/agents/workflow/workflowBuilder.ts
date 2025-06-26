@@ -18,53 +18,12 @@ export class WorkflowBuilder {
     workflow.addNode("cultural_agent", culturalAgentNode);
     workflow.addNode("final_reviewer", finalReviewerNode);
 
-    // Define sequential workflow using conditional edges to handle the flow
-    workflow.addConditionalEdges(
-      START,
-      () => "hr_agent",
-      {
-        hr_agent: "hr_agent"
-      }
-    );
-
-    workflow.addConditionalEdges(
-      "hr_agent",
-      () => "technical_agent",
-      {
-        technical_agent: "technical_agent"
-      }
-    );
-
-    workflow.addConditionalEdges(
-      "technical_agent",
-      () => "experience_agent",
-      {
-        experience_agent: "experience_agent"
-      }
-    );
-
-    workflow.addConditionalEdges(
-      "experience_agent",
-      () => "cultural_agent",
-      {
-        cultural_agent: "cultural_agent"
-      }
-    );
-
-    workflow.addConditionalEdges(
-      "cultural_agent",
-      () => "final_reviewer",
-      {
-        final_reviewer: "final_reviewer"
-      }
-    );
-
-    workflow.addConditionalEdges(
-      "final_reviewer",
-      () => END,
-      {
-        [END]: END
-      }
-    );
+    // Define sequential workflow using simple edges
+    workflow.addEdge(START, "hr_agent");
+    workflow.addEdge("hr_agent", "technical_agent");
+    workflow.addEdge("technical_agent", "experience_agent");
+    workflow.addEdge("experience_agent", "cultural_agent");
+    workflow.addEdge("cultural_agent", "final_reviewer");
+    workflow.addEdge("final_reviewer", END);
   }
 }
