@@ -35,40 +35,18 @@ export class LangGraphOrchestrator {
     this.culturalFitAgent = new CulturalFitAgent(apiKey);
     this.finalReviewerAgent = new FinalReviewerAgent(apiKey);
 
-    // Build the LangGraph workflow with proper state definition
+    // Build the LangGraph workflow with simplified state definition
     this.workflow = new StateGraph<AgentState>({
-      candidate: {
-        value: (x: Candidate, y?: Candidate) => y ?? x,
-        default: () => ({} as Candidate),
-      },
-      jobDescription: {
-        value: (x: any, y?: any) => y ?? x,
-        default: () => ({}),
-      },
-      hrFeedback: {
-        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
-        default: () => undefined,
-      },
-      technicalFeedback: {
-        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
-        default: () => undefined,
-      },
-      experienceFeedback: {
-        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
-        default: () => undefined,
-      },
-      culturalFeedback: {
-        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
-        default: () => undefined,
-      },
-      finalFeedback: {
-        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
-        default: () => undefined,
-      },
-      finalAnalysis: {
-        value: (x?: CandidateAnalysis, y?: CandidateAnalysis) => y ?? x,
-        default: () => undefined,
-      },
+      channels: {
+        candidate: null,
+        jobDescription: null,
+        hrFeedback: null,
+        technicalFeedback: null,
+        experienceFeedback: null,
+        culturalFeedback: null,
+        finalFeedback: null,
+        finalAnalysis: null,
+      }
     });
 
     this.buildWorkflow();
@@ -83,7 +61,7 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
     // Set entry point - start with HR agent
-    this.workflow.addEdge(START, "hr_agent");
+    this.workflow.setEntryPoint("hr_agent");
 
     // After HR, run other agents in parallel
     this.workflow.addEdge("hr_agent", "technical_agent");
