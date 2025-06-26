@@ -61,7 +61,7 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
     // Set entry point - start with HR agent
-    this.workflow.setEntryPoint("hr_agent");
+    this.workflow.addEdge(START, "hr_agent");
 
     // After HR, run other agents in parallel
     this.workflow.addEdge("hr_agent", "technical_agent");
