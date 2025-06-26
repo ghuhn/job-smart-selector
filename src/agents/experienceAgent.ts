@@ -8,7 +8,7 @@ export class ExperienceAgent {
 
   constructor(apiKey: string) {
     this.llm = new ChatGoogleGenerativeAI({
-      modelName: "gemini-pro",
+      model: "gemini-pro",
       apiKey: apiKey,
       temperature: 0.3,
     });

@@ -1,5 +1,5 @@
 
-import { StateGraph, END } from "@langchain/langgraph";
+import { StateGraph, END, START } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
 import { HRAgent } from './hrAgent';
 import { TechnicalAgent } from './technicalAgent';
@@ -35,18 +35,40 @@ export class LangGraphOrchestrator {
     this.culturalFitAgent = new CulturalFitAgent(apiKey);
     this.finalReviewerAgent = new FinalReviewerAgent(apiKey);
 
-    // Build the LangGraph workflow
+    // Build the LangGraph workflow with proper state definition
     this.workflow = new StateGraph<AgentState>({
-      channels: {
-        candidate: null,
-        jobDescription: null,
-        hrFeedback: null,
-        technicalFeedback: null,
-        experienceFeedback: null,
-        culturalFeedback: null,
-        finalFeedback: null,
-        finalAnalysis: null,
-      }
+      candidate: {
+        value: (x: Candidate, y?: Candidate) => y ?? x,
+        default: () => ({} as Candidate),
+      },
+      jobDescription: {
+        value: (x: any, y?: any) => y ?? x,
+        default: () => ({}),
+      },
+      hrFeedback: {
+        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
+        default: () => undefined,
+      },
+      technicalFeedback: {
+        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
+        default: () => undefined,
+      },
+      experienceFeedback: {
+        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
+        default: () => undefined,
+      },
+      culturalFeedback: {
+        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
+        default: () => undefined,
+      },
+      finalFeedback: {
+        value: (x?: AgentFeedback, y?: AgentFeedback) => y ?? x,
+        default: () => undefined,
+      },
+      finalAnalysis: {
+        value: (x?: CandidateAnalysis, y?: CandidateAnalysis) => y ?? x,
+        default: () => undefined,
+      },
     });
 
     this.buildWorkflow();
@@ -60,10 +82,10 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("cultural_agent", this.culturalAgentNode.bind(this));
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
-    // Set entry point
-    this.workflow.setEntryPoint("hr_agent");
+    // Set entry point - start with HR agent
+    this.workflow.addEdge(START, "hr_agent");
 
-    // Add edges - agents run in parallel after HR
+    // After HR, run other agents in parallel
     this.workflow.addEdge("hr_agent", "technical_agent");
     this.workflow.addEdge("hr_agent", "experience_agent");
     this.workflow.addEdge("hr_agent", "cultural_agent");
