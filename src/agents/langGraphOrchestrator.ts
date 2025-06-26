@@ -1,4 +1,3 @@
-
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
 import { HRAgent } from './hrAgent';
@@ -60,8 +59,8 @@ export class LangGraphOrchestrator {
     this.workflow.addNode("cultural_agent", this.culturalAgentNode.bind(this));
     this.workflow.addNode("final_reviewer", this.finalReviewerNode.bind(this));
 
-    // Simple sequential workflow that works with LangGraph constraints
-    this.workflow.setEntryPoint("hr_agent");
+    // Use START and END constants correctly with custom node names
+    this.workflow.addEdge(START, "hr_agent");
     this.workflow.addEdge("hr_agent", "technical_agent");
     this.workflow.addEdge("technical_agent", "experience_agent");
     this.workflow.addEdge("experience_agent", "cultural_agent");
