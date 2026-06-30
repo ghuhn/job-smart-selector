@@ -63,4 +63,4 @@ export class GeminiAPI {
 }
 
 // Updated API key and model endpoint
-export const geminiAPI = new GeminiAPI('AIzaSyD992IvUFwDu3tml50Or_uKSokdzmHnHtY');
+export const geminiAPI = new GeminiAPI('API_KEY_HERE');
